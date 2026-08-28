@@ -1,7 +1,7 @@
 const { success, fail } = require("../utils/response");
 const { hashPassword, comparePassword } = require("../utils/password");
 const { signToken } = require("../utils/jwt");
-const { createUser, findByEmail, emailExists } = require("../models/userModel");
+const { createUser, findByEmail, findById, emailExists } = require("../models/userModel");
 
 function toPublicUser(user) {
   const { password, ...safeUser } = user;
@@ -56,7 +56,22 @@ async function login(req, res, next) {
   }
 }
 
+async function me(req, res, next) {
+  try {
+    const user = await findById(req.user.id);
+
+    if (!user) {
+      return fail(res, 401, "Invalid or expired token.");
+    }
+
+    return success(res, 200, "Authenticated user", toPublicUser(user));
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   register,
   login,
+  me,
 };
