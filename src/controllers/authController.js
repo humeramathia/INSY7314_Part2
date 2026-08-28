@@ -1,6 +1,7 @@
-const { success } = require("../utils/response");
-const { hashPassword } = require("../utils/password");
-const { createUser } = require("../models/userModel");
+const { success, fail } = require("../utils/response");
+const { hashPassword, comparePassword } = require("../utils/password");
+const { signToken } = require("../utils/jwt");
+const { createUser, findByEmail } = require("../models/userModel");
 
 function toPublicUser(user) {
   const { password, ...safeUser } = user;
@@ -24,6 +25,33 @@ async function register(req, res, next) {
   }
 }
 
+async function login(req, res, next) {
+  try {
+    const { email, password } = req.body;
+    const user = await findByEmail(email);
+
+    if (!user) {
+      return fail(res, 401, "Invalid email or password");
+    }
+
+    const isMatch = await comparePassword(password, user.password);
+
+    if (!isMatch) {
+      return fail(res, 401, "Invalid email or password");
+    }
+
+    const token = signToken({ id: user.id, role: user.role });
+
+    return success(res, 200, "Login successful", {
+      token,
+      user: toPublicUser(user),
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   register,
+  login,
 };
