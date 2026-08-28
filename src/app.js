@@ -1,6 +1,7 @@
 const express = require("express");
 const { success } = require("./utils/response");
 const { errorMiddleware } = require("./middleware/errorMiddleware");
+const { notFoundMiddleware } = require("./middleware/notFound");
 const authRoutes = require("./routes/authRoutes");
 
 const app = express();
@@ -13,6 +14,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 
+app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
 module.exports = app;
