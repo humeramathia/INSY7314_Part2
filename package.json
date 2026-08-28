@@ -1,0 +1,32 @@
+{
+  "name": "insy7314-2026-g1-insy7314-2026-hustlehub-plus-part1-humeramathia",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+  "start": "node backend/server.js",
+  "dev": "nodemon backend/server.js"
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EMWCCN/insy7314-2026-g1-insy7314-2026-hustlehub-plus-part1-humeramathia.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/EMWCCN/insy7314-2026-g1-insy7314-2026-hustlehub-plus-part1-humeramathia/issues"
+  },
+  "homepage": "https://github.com/EMWCCN/insy7314-2026-g1-insy7314-2026-hustlehub-plus-part1-humeramathia#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.2",
+    "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
