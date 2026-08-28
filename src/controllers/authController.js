@@ -1,7 +1,7 @@
 const { success, fail } = require("../utils/response");
 const { hashPassword, comparePassword } = require("../utils/password");
 const { signToken } = require("../utils/jwt");
-const { createUser, findByEmail } = require("../models/userModel");
+const { createUser, findByEmail, emailExists } = require("../models/userModel");
 
 function toPublicUser(user) {
   const { password, ...safeUser } = user;
@@ -11,12 +11,17 @@ function toPublicUser(user) {
 async function register(req, res, next) {
   try {
     const { name, email, password, role } = req.body;
+
+    if (await emailExists(email)) {
+      return fail(res, 409, "Email already registered");
+    }
+
     const hashedPassword = await hashPassword(password);
     const user = await createUser({
       name: String(name).trim(),
       email,
       password: hashedPassword,
-      role: String(role).trim(),
+      role: String(role).trim().toLowerCase(),
     });
 
     return success(res, 201, "User registered successfully", toPublicUser(user));
