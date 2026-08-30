@@ -6,8 +6,11 @@ Secure freelance marketplace API (Part 1 backend). Freelancers advertise service
 
 ```bash
 npm install
+copy .env.example .env
 npm run dev
 ```
+
+On macOS/Linux use `cp .env.example .env`. Set a long random `JWT_SECRET` in `.env` before sharing or demoing. Never commit `.env`.
 
 The API listens on `http://localhost:3000` (or `PORT` if set).
 
@@ -49,14 +52,17 @@ Roles: `client` | `freelancer` | `admin`
 {
   "name": "Ada Lovelace",
   "email": "ada@test.com",
-  "password": "secret123",
+  "password": "Secret123!",
   "role": "client"
 }
 ```
 
+Password must be 8–128 characters and include uppercase, lowercase, a number, and a special character.
+
 | Case | Status |
 | --- | --- |
-| Missing fields | `400` |
+| Missing or invalid fields | `400` |
+| Weak password | `400` |
 | Invalid role | `400` |
 | Duplicate email | `409` |
 
@@ -67,7 +73,7 @@ Roles: `client` | `freelancer` | `admin`
 ```json
 {
   "email": "ada@test.com",
-  "password": "secret123"
+  "password": "Secret123!"
 }
 ```
 
@@ -115,6 +121,6 @@ Keep these names so security work can plug in without changing controllers:
 - `validateRegister`, `validateLogin`
 - `errorMiddleware`
 
-Password hashing is currently a stub. JWT sign/verify wrappers are in `src/utils/jwt.js`. HTTPS and the full security write-up are owned by teammates.
+Passwords are hashed with bcrypt (`hashPassword` / `comparePassword`). JWTs are signed with `JWT_SECRET` from `.env` and include `id` and `role`. Input is validated before controllers run. HTTPS and the demo/Postman collection are owned by teammates.
 
 User data is stored in `src/data/users.json` (gitignored). The file is created automatically on first register.

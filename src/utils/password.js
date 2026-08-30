@@ -1,11 +1,13 @@
-// TODO: Person 2 - replace with bcrypt hashing
+const bcrypt = require("bcryptjs");
+
+const SALT_ROUNDS = 12;
+
 async function hashPassword(password) {
-  return password;
+  return bcrypt.hash(password, SALT_ROUNDS);
 }
 
-// TODO: Person 2 - replace with bcrypt compare
 async function comparePassword(plain, stored) {
-  return plain === stored;
+  return bcrypt.compare(plain, stored);
 }
 
 module.exports = {
