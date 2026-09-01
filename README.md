@@ -7,14 +7,15 @@ Secure freelance marketplace API (Part 1 backend). Freelancers advertise service
 ```bash
 npm install
 copy .env.example .env
+npm run certs
 npm run dev
 ```
 
 On macOS/Linux use `cp .env.example .env`. Set a long random `JWT_SECRET` in `.env` before sharing or demoing. Never commit `.env`.
 
-The API listens on `http://localhost:3000` (or `PORT` if set). If `certs/key.pem` and `certs/cert.pem` exist, it listens on `https://localhost:3000` instead.
+The API is served over HTTPS at `https://localhost:3000` using a local SSL certificate in `certs/`. Those files are gitignored; each teammate runs `npm run certs` once.
 
-Health check: `GET http://localhost:3000/api/health` (use `https://` when certificates are installed).
+Health check: `GET https://localhost:3000/api/health`
 
 ## Response shape
 
@@ -34,7 +35,7 @@ Passwords are never returned in `data`.
 
 ## Auth endpoints
 
-Base URL: `http://localhost:3000` (or `https://localhost:3000` with certificates)
+Base URL: `https://localhost:3000`
 
 | Method | Path | Access | Success |
 | --- | --- | --- | --- |
@@ -138,7 +139,7 @@ Register and login bodies are validated before controllers run: required fields,
 
 ### HTTPS
 
-The API can be served over HTTPS with a local certificate so passwords and JWTs are not sent in clear text on the network.
+The API is served over HTTPS with a locally generated SSL certificate (`certs/key.pem` and `certs/cert.pem`) so passwords and JWTs are not sent in clear text.
 
 **Why:** hashing and signing do not help if login and Bearer tokens travel over plain HTTP on a shared network.
 
@@ -148,20 +149,19 @@ The API can be served over HTTPS with a local certificate so passwords and JWTs 
 
 ## HTTPS — local setup
 
-Certificate files are gitignored. Each teammate generates their own.
+Certificate files are gitignored. Each teammate generates their own:
 
 ```bash
-# Windows (Chocolatey)
-choco install mkcert
-
-# Then:
-mkcert -install
-mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1
+npm run certs
 ```
 
-`src/server.js` loads those files when they exist and starts HTTPS. If they are missing, the API still starts on HTTP so the team can develop without certificates.
+This creates a local self-signed certificate for `localhost` using OpenSSL (included with Git for Windows). `src/server.js` always starts an HTTPS server with those files. If they are missing, the process exits and tells you to run `npm run certs`.
 
-In Postman, use `https://localhost:3000/...` when certificates are present. Only turn off SSL certificate verification if you skip `mkcert -install`.
+In Postman:
+1. Use `https://localhost:3000/...` (not `http://`)
+2. Settings → turn **SSL certificate verification** off (needed for a self-signed local cert)
+
+Do not commit `certs/key.pem` or `certs/cert.pem`.
 
 ## Project structure
 
