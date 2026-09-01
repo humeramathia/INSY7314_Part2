@@ -1,8 +1,123 @@
-# HustleHub+
+# HustleHub+ — Part 1
 
-Secure freelance marketplace API (Part 1 backend). Freelancers advertise services; clients browse and book. This repo implements a Node.js/Express auth API: register, login, and a JWT-protected profile route.
+HustleHub+ is a secure freelance marketplace. Freelancers advertise services; clients browse and book those services. Bookings create simulated payment records so freelancers can later see income and estimated tax.
 
-## Run
+Part 1 delivers the **secure backend foundation**: a Node.js and Express API for registration, login, and a JWT-protected route, served over HTTPS.
+
+---
+
+## Table of contents
+
+1. [Group members](#group-members)
+2. [System and intended users](#system-and-intended-users)
+3. [Architecture](#architecture)
+4. [Backend structure](#backend-structure)
+5. [How to run](#how-to-run)
+6. [API endpoints](#api-endpoints)
+7. [Request flow](#request-flow)
+8. [Security decisions](#security-decisions)
+9. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
+
+---
+
+## Group members
+
+| Name | Student number | Role on Part 1 |
+| --- | --- | --- |
+| **Humera Mathia** (Group Leader) | ST10276384 | Node.js / Express API: folder layout, routes, controllers, models, file-based user storage, register / login / protected `/me`, HTTPS server, integration onto `main` |
+| **Mohammed Ba Yazed** | ST10174227 | Password hashing (bcrypt), JWT sign/verify and secret handling, input validation (including malicious / unexpected fields) |
+| **Lilitha Mlobi** | ST10454944 | MERN architecture diagram, security write-up (hashing, JWT, validation, HTTPS), HTTPS setup documentation |
+| **Imraan Nordien** | ST10434419 | Postman collection (success and invalid cases), API response screenshots, demonstration video |
+
+---
+
+## System and intended users
+
+HustleHub+ will eventually support three roles:
+
+| Role | Intended use |
+| --- | --- |
+| **Client** | Browse gigs and book services |
+| **Freelancer** | Create gigs, view bookings, track income and tax |
+| **Admin** | Manage the platform |
+
+Part 1 does **not** include gigs, bookings, or a React UI. It only proves that users can register and log in **securely**, and that later requests can be identified with a JWT.
+
+Sensitive data in this part includes **credentials** (email and password) and **identity** (user id and role). Those are treated as security-critical from the first commit, not added later.
+
+User records are stored in a local file (`src/data/users.json`) so the API can run without MongoDB. The file is gitignored. Hashing, validation, and JWT still happen **before** anything is written, so the same security layer can sit in front of MongoDB in Part 2.
+
+---
+
+## Architecture
+
+![Architecture diagram](./Architecture%20Diagram%20.png)
+
+The diagram follows a **MERN** layout (MongoDB, Express, React, Node.js) with a security boundary at each tier:
+
+| Tier | Part 1 status | Boundary |
+| --- | --- | --- |
+| **Client (React SPA)** | Not built yet | Will call the API over HTTPS only. Must not store plaintext passwords. After login it may keep the JWT. |
+| **Server (Node.js + Express)** | Implemented | The only process that accepts client requests. Every request is filtered before business logic. |
+| **Data** | File store (`users.json`) | Replaced by MongoDB later. The store never sees a plaintext password. |
+
+On the server, a request is processed in this order:
+
+1. **HTTPS** — the connection is encrypted before Express reads the body.
+2. **Validation** — missing, invalid, or unexpected input is rejected.
+3. **Authentication (JWT)** — public routes (register, login) skip this; protected routes must present a valid Bearer token.
+4. **Controllers** — create the user, issue a token, or return the current user.
+5. **Model / storage** — persist or read a user **after** hashing and checks.
+
+Routes, controllers, middleware, and models are separate so validation and JWT checks cannot be skipped by putting logic in one large file.
+
+---
+
+## Backend structure
+
+```text
+hustlehub-plus/
+├── Architecture Diagram .png      # MERN + security boundaries (Lilitha)
+├── README.md
+├── .env.example                   # PORT, JWT_SECRET, JWT_EXPIRES_IN (no real secret)
+├── .gitignore                     # .env, certs, users.json, node_modules
+├── package.json
+├── certs/                         # local SSL files (not committed)
+│   └── .gitkeep
+├── postman/                       # Imraan: collection + screenshots
+│   └── .gitkeep
+├── scripts/
+│   └── generate-certs.js          # npm run certs → local HTTPS certificate
+└── src/
+    ├── server.js                  # HTTPS server only
+    ├── app.js                     # Express app, JSON parser, route mount
+    ├── config/
+    │   └── index.js               # PORT + JWT secret from .env
+    ├── routes/
+    │   └── authRoutes.js          # URL wiring only
+    ├── controllers/
+    │   └── authController.js      # register, login, me
+    ├── models/
+    │   └── userModel.js           # file-based user storage
+    ├── middleware/
+    │   ├── authMiddleware.js      # verify JWT on protected routes
+    │   ├── validateRegister.js
+    │   ├── validateLogin.js
+    │   ├── errorMiddleware.js     # safe JSON errors, no stack traces
+    │   └── notFound.js
+    ├── utils/
+    │   ├── password.js            # hashPassword, comparePassword (bcrypt)
+    │   ├── jwt.js                 # signToken, verifyToken
+    │   └── response.js            # { success, message, data }
+    └── data/
+        └── .gitkeep               # users.json created at runtime, gitignored
+```
+
+**Why this split:** `routes` only map URLs. `middleware` enforces security before a controller runs. `utils` hold hashing and JWT so those algorithms are not copied into controllers. `models` own storage. That matches the rubric (routes, controllers, and models separated) and makes each security control testable on its own.
+
+---
+
+## How to run
 
 ```bash
 npm install
@@ -11,39 +126,34 @@ npm run certs
 npm run dev
 ```
 
-On macOS/Linux use `cp .env.example .env`. Set a long random `JWT_SECRET` in `.env` before sharing or demoing. Never commit `.env`.
+On macOS or Linux use `cp .env.example .env`.
 
-The API is served over HTTPS at `https://localhost:3000` using a local SSL certificate in `certs/`. Those files are gitignored; each teammate runs `npm run certs` once.
+1. Put a long random value in `.env` for `JWT_SECRET`. Never commit `.env`.
+2. `npm run certs` creates `certs/key.pem` and `certs/cert.pem` (gitignored).
+3. The API listens on **`https://localhost:3000`**.
 
 Health check: `GET https://localhost:3000/api/health`
 
-## Response shape
+In Postman, use `https://` and turn **SSL certificate verification** off (self-signed local certificate).
 
-Success:
+---
 
-```json
-{ "success": true, "message": "...", "data": {} }
-```
-
-Error:
-
-```json
-{ "success": false, "message": "..." }
-```
-
-Passwords are never returned in `data`.
-
-## Auth endpoints
+## API endpoints
 
 Base URL: `https://localhost:3000`
 
 | Method | Path | Access | Success |
 | --- | --- | --- | --- |
-| POST | `/api/auth/register` | Public | `201` |
-| POST | `/api/auth/login` | Public | `200` |
-| GET | `/api/auth/me` | Bearer JWT | `200` |
+| `GET` | `/api/health` | Public | `200` |
+| `POST` | `/api/auth/register` | Public | `201` |
+| `POST` | `/api/auth/login` | Public | `200` |
+| `GET` | `/api/auth/me` | Bearer JWT | `200` |
 
-Roles: `client` | `freelancer` | `admin`
+Roles: `client` \| `freelancer` \| `admin`
+
+**Success:** `{ "success": true, "message": "...", "data": {} }`  
+**Error:** `{ "success": false, "message": "..." }`  
+Passwords are never returned in `data`.
 
 ### Register
 
@@ -81,111 +191,82 @@ Password must be 8–128 characters and include uppercase, lowercase, a number, 
 | Case | Status |
 | --- | --- |
 | Missing fields | `400` |
-| Unknown email or wrong password | `401` |
+| Unknown email or wrong password | `401` (same message for both) |
 
 `data` includes `token` and `user`.
 
-### Current user
+### Current user (protected)
 
-`GET /api/auth/me`
-
+`GET /api/auth/me`  
 Header: `Authorization: Bearer <token>`
+
+This is the Part 1 route **beyond login**. The JWT is validated on **every** call.
 
 | Case | Status |
 | --- | --- |
 | No token | `401` |
-| Invalid token | `401` |
+| Invalid or expired token | `401` |
 
-## System overview and intended users
+---
 
-HustleHub+ is a freelance marketplace where freelancers post gigs and clients browse and book them. Bookings create simulated financial transactions. Freelancers will later see income and estimated tax on a dashboard. The platform handles credentials, transactions, and income, so security is designed in from the start.
+## Request flow
 
-Part 1 is limited to a secure register/login API. Users are stored in a local file (`src/data/users.json`), not MongoDB yet. Hashing, validation, and authentication still run before anything is saved, so the security layer can stay in place when a database is added.
+**Register:** HTTPS → `validateRegister` → controller checks duplicate email → `hashPassword` → `createUser` → `201` without password.
 
-## Architecture
+**Login:** HTTPS → `validateLogin` → find user → `comparePassword` → `signToken({ id, role })` → `200` with token.
 
-![Architecture diagram](./Architecture%20Diagram%20.png)
+**Protected `/me`:** HTTPS → `authMiddleware` reads `Bearer` token → `verifyToken` → `req.user` → `findById` → `200` without password.
 
-The diagram shows the MERN architecture and the security boundary for each layer:
+If any step fails, the client gets a controlled JSON error. Stack traces, file paths, and configuration values are not sent.
 
-- **Client tier (React SPA)** — the UI talks to the API only over HTTPS in the intended design, never stores plaintext passwords, and keeps only the JWT after login. The React app is not built in Part 1.
-- **Server tier (Node.js + Express)** — the only server the client may call. Requests pass through security layers before business logic:
-  1. **Auth & JWT** — issues a token on login and identifies the user on protected routes.
-  2. **Validation & sanitisation** — rejects missing, invalid, or unexpected input before it reaches a controller.
-  3. **Routes & controllers** — register, login, and the protected `/me` route.
-- **Data tier** — file-based user storage for Part 1; MongoDB will replace this later without moving hashing or JWT into the store.
-
-Keeping routes, controllers, middleware, and models in separate folders is a security choice as well as a structure choice: validation cannot be skipped by accident, and each layer can be tested on its own.
+---
 
 ## Security decisions
 
+Each control below is in the running API. The **why** is what the Part 1 rubric asks for.
+
 ### Password hashing
 
-Passwords are hashed with **bcryptjs (12 salt rounds)** via `hashPassword` before they are saved. Plaintext is never stored. Login uses `comparePassword` (`bcrypt.compare`) against the stored hash.
+**What:** Passwords are hashed with **bcryptjs, 12 salt rounds** (`hashPassword`) before they are saved. Login uses `comparePassword` (`bcrypt.compare`). Plaintext is never stored or returned.
 
-**Why:** if the user file is leaked, the hash is slow to reverse and salted, so rainbow tables are not useful. Twelve rounds is a balance between brute-force cost and acceptable register/login time.
+**Why:** If `users.json` is copied, logged, or leaked, a slow salted hash is expensive to reverse. Rainbow tables do not help because bcrypt salts each password. A fast hash (MD5, SHA-1) or plaintext would turn one leaked file into a full account takeover. Twelve rounds is slow enough for attackers and still acceptable for register and login. Hashing happens in the controller **before** the model writes the file, so storage never sees the original password.
 
 ### Token-based authentication (JWT)
 
-On successful login the API returns a JWT with the user's `id` and `role`, signed with `JWT_SECRET` from `.env`. Later requests send `Authorization: Bearer <token>`. `GET /api/auth/me` (and any later protected route) validates the token on every request through `authMiddleware`.
+**What:** Login returns a JWT signed with `JWT_SECRET` from `.env`. The payload is only `id` and `role`. Protected routes send `Authorization: Bearer <token>`. `authMiddleware` calls `verifyToken` on **every** protected request. `/me` is the Part 1 protected route.
 
-**Why:** the API stays stateless. A signed token cannot have its `id`/`role` changed without failing verification. The payload is small (no password, no full profile). The secret is not in the repository.
+**Why:** The API stays **stateless** — the server does not keep a session table to know who is calling. Signing (not only encoding) means a client cannot change `id` or `role` without breaking the signature. A small payload limits what is exposed if a token is stolen. The secret lives in `.env` (gitignored) so it is not in GitHub; a hard-coded secret would be public as soon as the repo is pushed. Validating on every protected request prevents someone from calling `/me` with a missing, expired, or forged token.
 
 ### Input validation
 
-Register and login bodies are validated before controllers run: required fields, email format, password strength, allowed roles (`client` | `freelancer` | `admin`), and rejection of unexpected fields.
+**What:** `validateRegister` and `validateLogin` run **before** controllers. They require the right fields, a real email, a strong password, an allowed role, and they **reject unexpected fields**.
 
-**Why:** this blocks malformed data, injection-style payloads, and unexpected extra fields before they reach storage.
+**Why:** The API is the first place an attacker can send data. Checking at the boundary means every route uses the same rules; a controller cannot “forget” to validate. Unexpected fields block extra JSON that might be used to smuggle privileges or junk into storage. A weak password (`secret123`) is rejected because hashing a guessable password still leaves the account easy to break. Login failures use the same `"Invalid email or password"` message so the API does not reveal whether an email is registered.
 
 ### HTTPS
 
-The API is served over HTTPS with a locally generated SSL certificate (`certs/key.pem` and `certs/cert.pem`) so passwords and JWTs are not sent in clear text.
+**What:** `src/server.js` always uses `https.createServer` with a local certificate (`certs/key.pem`, `certs/cert.pem`). There is no HTTP fallback. Certificates are generated with `npm run certs` and are not committed.
 
-**Why:** hashing and signing do not help if login and Bearer tokens travel over plain HTTP on a shared network.
+**Why:** Hashing and JWT signing do not help if the login body (password) or later `Authorization` headers (JWT) travel in clear text. On a shared network, HTTP would expose both. Serving HTTPS in development also finds certificate mistakes now, instead of only in production. The browser “Not secure” warning on a **self-signed** cert is expected; the connection is still TLS. Postman should use `https://localhost:3000` with SSL verification off for that local cert.
 
 ### Controlled error handling
 
-`errorMiddleware` returns `{ success: false, message }` and does not send stack traces, file paths, or configuration values.
+**What:** `errorMiddleware` returns `{ success: false, message: "Something went wrong" }` for unexpected failures. Unknown URLs return JSON `404`. Validation and auth errors use the same `{ success, message }` shape.
 
-## HTTPS — local setup
+**Why:** Raw Express errors can leak stack traces, file paths, framework versions, or env details. That helps an attacker map the server. A short, consistent JSON body is enough for Postman and the UI without exposing internals.
 
-Certificate files are gitignored. Each teammate generates their own:
+---
 
-```bash
-npm run certs
-```
+## Testing, screenshots, and demonstration
 
-This creates a local self-signed certificate for `localhost` using OpenSSL (included with Git for Windows). `src/server.js` always starts an HTTPS server with those files. If they are missing, the process exits and tells you to run `npm run certs`.
+Imraan Nordien (ST10434419) owns evidence for the Part 1 submission:
 
-In Postman:
-1. Use `https://localhost:3000/...` (not `http://`)
-2. Settings → turn **SSL certificate verification** off (needed for a self-signed local cert)
+| Deliverable | Location |
+| --- | --- |
+| Postman collection (successful register/login **and** invalid cases) | `postman/` |
+| Screenshots of API responses | `postman/` (or as required on the cover sheet) |
+| Demonstration video (API running, register, login with token) | Link below |
 
-Do not commit `certs/key.pem` or `certs/cert.pem`.
+**Demonstration video:** _to be added by Imraan_
 
-## Project structure
-
-```
-src/
-  app.js
-  server.js
-  config/          PORT and JWT settings
-  routes/          URL wiring only
-  controllers/     register, login, me
-  models/          user storage (src/data/users.json)
-  middleware/      auth, validation, errors
-  utils/           password, jwt, response helpers
-certs/             local HTTPS certificates (not committed)
-postman/           Postman collection (teammate)
-Architecture Diagram .png
-```
-
-## Agreed function names
-
-- `hashPassword`, `comparePassword`
-- `signToken`, `verifyToken`
-- `authMiddleware`
-- `validateRegister`, `validateLogin`
-- `errorMiddleware`
-
-User data is stored in `src/data/users.json` (gitignored). The file is created automatically on first register.
+The collection should cover at least: register `201`, duplicate `409`, weak/missing fields `400`, login `200` with token, wrong password `401`, `/me` with token `200`, `/me` without token `401`.
