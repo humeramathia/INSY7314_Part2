@@ -51,50 +51,25 @@ User records are stored in a local file (`src/data/users.json`) so the API can r
 
 ## Architecture
 
-Think of HustleHub+ as a building with three floors. A user never walks straight into the filing room. They come in through the front door (the website), talk to reception (the API), and only reception is allowed to open the filing cabinets (storage).
-
-That three-floor layout is called **MERN**:
-
-| Letter | Technology | In plain English | On the diagram |
-| --- | --- | --- | --- |
-| **M** | MongoDB | A database that stores users, gigs, and bookings | Orange **Data tier** at the bottom |
-| **E** | Express | Rules for “if someone asks for this URL, do this” | Inside the blue **Server tier** |
-| **R** | React | The website the user clicks on | Green **Client tier** at the top |
-| **N** | Node.js | The engine that runs the server | The same blue **Server tier** |
-
 ![Architecture diagram](./Architecture%20Diagram%20.png)
 
-### What each box means (as if you have never seen this system)
+The diagram follows a **MERN** layout (MongoDB, Express, React, Node.js) with a security boundary at each tier:
 
-**1. Green box — Client tier (React SPA / “the shop window”)**  
-This is the HustleHub+ website in a browser. “SPA” means single-page app: the page does not fully reload for every click. In Part 1 this website is **not built yet**. We test the same door with Postman instead. The client must never keep a raw password. After login it may keep a **JWT** (a short-lived pass), not the password.
-
-**2. The arrow labelled HTTPS (TLS) — “the locked tunnel”**  
-Everything between the browser (or Postman) and the server travels through an encrypted tunnel. TLS is the lock. That is why the URL is `https://localhost:3000`, not `http://`. Without this arrow, a password or token could be read on the same Wi-Fi. Hashing and JWT would not matter if the message is sent in the open.
-
-**3. Blue box — Server tier (Node.js + Express) — “reception and the security boundary”**  
-This is the only part of the system the outside world is allowed to talk to. The diagram says **system boundary: reachable only over HTTPS**. Nobody on the internet talks to the user file or (later) MongoDB directly. They must go through this box.
-
-Inside reception there are three desks (the purple boxes):
-
-- **Auth & JWT** — checks who you are. On register it **hashes** the password (turns it into a one-way scramble). On login it compares the scramble and **issues a token** (a signed pass with your `id` and `role`). On later requests it checks that pass.
-- **Validation** — checks the form before any work is done. Missing name, weak password, fake email, or a role like `"manager"` is stopped here. Extra unexpected fields are rejected so junk cannot sneak into storage.
-- **Routes & controllers** — the actual jobs: register, login, and (later) gigs and bookings. In Part 1 the jobs are register, login, and “who am I?” (`/me`).
-
-A request is handled in this order: HTTPS → validation → JWT (if the route is protected) → controller → storage.
-
-**4. Orange box — Data tier — “the filing cabinet”**  
-Part 1 uses a **file** (`src/data/users.json`) instead of MongoDB so the API can run without installing a database. The arrow labelled **Queries** is reception asking the cabinet to save or find a user. The cabinet **never** sees a plaintext password — only a bcrypt hash. Part 2 will swap the file for **MongoDB**. The green and blue boxes stay the same; only this floor changes.
-
-### System boundaries (who may touch what)
-
-| Who | May talk to | May not talk to |
+| Tier | Part 1 status | Boundary |
 | --- | --- | --- |
-| Browser / Postman | Server over HTTPS only | The user file or MongoDB |
-| Server | Client (responses) and storage (queries) | Nothing outside HTTPS |
-| Storage | Server only | The internet |
+| **Client (React SPA)** | Not built yet | Will call the API over HTTPS only. Must not store plaintext passwords. After login it may keep the JWT. |
+| **Server (Node.js + Express)** | Implemented | The only process that accepts client requests. Every request is filtered before business logic. |
+| **Data** | File store (`users.json`) | Replaced by MongoDB later. The store never sees a plaintext password. |
 
-Public routes (register, login, health) do not need a token. Protected routes (`/me`, and later gigs or bookings) must show a valid JWT on **every** request. That line on the diagram is the difference between “anyone can knock” and “only people with a pass get in”.
+On the server, a request is processed in this order:
+
+1. **HTTPS** — the connection is encrypted before Express reads the body.
+2. **Validation** — missing, invalid, or unexpected input is rejected.
+3. **Authentication (JWT)** — public routes (register, login) skip this; protected routes must present a valid Bearer token.
+4. **Controllers** — create the user, issue a token, or return the current user.
+5. **Model / storage** — persist or read a user **after** hashing and checks.
+
+Routes, controllers, middleware, and models are separate so validation and JWT checks cannot be skipped by putting logic in one large file.
 
 ---
 
@@ -110,8 +85,7 @@ hustlehub-plus/
 ├── certs/                         # local SSL files (not committed)
 │   └── .gitkeep
 ├── postman/                       # Imraan: collection + screenshots
-│   ├── .gitkeep
-│   └── screenshots/               # 12 Postman evidence images
+│   └── .gitkeep
 ├── scripts/
 │   └── generate-certs.js          # npm run certs → local HTTPS certificate
 └── src/
@@ -285,80 +259,14 @@ Each control below is in the running API. The **why** is what the Part 1 rubric 
 
 ## Testing, screenshots, and demonstration
 
-Imraan Nordien (ST10434419) produced the Postman evidence. Images live in `postman/screenshots/`. The exported collection belongs in `postman/` as a `.json` file.
+Imraan Nordien (ST10434419) owns evidence for the Part 1 submission:
 
-**Demonstration video:** _to be added by Imraan_ (API running, successful register, login with token generation).
+| Deliverable | Location |
+| --- | --- |
+| Postman collection (successful register/login **and** invalid cases) | `postman/` |
+| Screenshots of API responses | `postman/` (or as required on the cover sheet) |
+| Demonstration video (API running, register, login with token) | Link below |
 
-All requests use **HTTPS** (`https://localhost:3000`).
+**Demonstration video:** _to be added by Imraan_
 
-### 1. Health — API is running (`200`)
-
-`GET /api/health` proves the server is up over HTTPS.
-
-![Health 200](./postman/screenshots/01-health-200.png)
-
-### 2. Register — success (`201`)
-
-A valid body creates a user. The password is **not** returned.
-
-![Register 201](./postman/screenshots/02-register-201.png)
-
-### 3. Register — missing fields (`400`)
-
-Name is omitted. Validation rejects the request before anything is stored.
-
-![Register missing fields 400](./postman/screenshots/03-register-missing-400.png)
-
-### 4. Register — weak password (`400`)
-
-`secret123` has no uppercase letter. Hashing a weak password is not enough; we refuse it.
-
-![Register weak password 400](./postman/screenshots/04-register-weak-password-400.png)
-
-### 5. Register — invalid role (`400`)
-
-`"manager"` is not allowed. Only `client`, `freelancer`, or `admin`.
-
-![Register invalid role 400](./postman/screenshots/05-register-invalid-role-400.png)
-
-### 6. Register — duplicate email (`409`)
-
-The same email cannot register twice.
-
-![Register duplicate 409](./postman/screenshots/06-register-duplicate-409.png)
-
-### 7. Login — success and JWT (`200`)
-
-Correct credentials return a **token**. This is the POE “login with token generation” evidence.
-
-![Login 200 token](./postman/screenshots/07-login-200-token.png)
-
-### 8. Login — missing fields (`400`)
-
-Password omitted. Validation runs before login logic.
-
-![Login missing 400](./postman/screenshots/08-login-missing-400.png)
-
-### 9. Login — invalid credentials (`401`)
-
-Wrong password. The message is `"Invalid email or password"` so we do not reveal whether the email exists.
-
-![Login invalid 401](./postman/screenshots/09-login-invalid-401.png)
-
-### 10. Protected `/me` — no token (`401`)
-
-The route beyond login refuses callers with no JWT.
-
-![Me no token 401](./postman/screenshots/10-me-no-token-401.png)
-
-### 11. Protected `/me` — invalid token (`401`)
-
-`Bearer badtoken` is rejected. The JWT is checked on every protected request.
-
-![Me bad token 401](./postman/screenshots/11-me-bad-token-401.png)
-
-### 12. Protected `/me` — valid token (`200`)
-
-The login token identifies the user. Password is still not returned.
-
-![Me 200](./postman/screenshots/12-me-200.png)
+The collection should cover at least: register `201`, duplicate `409`, weak/missing fields `400`, login `200` with token, wrong password `401`, `/me` with token `200`, `/me` without token `401`.
