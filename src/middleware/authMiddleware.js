@@ -23,6 +23,9 @@ function authMiddleware(req, res, next) {
   }
 }
 
+const requireAuth = authMiddleware;
+
 module.exports = {
   authMiddleware,
+  requireAuth,
 };
