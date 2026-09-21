@@ -4,6 +4,7 @@ const { errorMiddleware } = require("./middleware/errorMiddleware");
 const { notFoundMiddleware } = require("./middleware/notFound");
 const authRoutes = require("./routes/authRoutes");
 const gigRoutes = require("./routes/gigRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/gigs", gigRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
