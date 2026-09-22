@@ -2,6 +2,9 @@ node_modules/
 .env
 *.log
 src/data/users.json
+src/data/gigs.json
+src/data/bookings.json
+src/data/transactions.json
 certs/*.pem
 certs/*.key
 certs/*.crt

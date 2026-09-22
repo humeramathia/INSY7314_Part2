@@ -36,9 +36,6 @@ function requireAuth(req, res, next) {
   }
 }
 
-/**
- * Backwards-compatible alias for Part 1 routes.
- */
 const authMiddleware = requireAuth;
 
 module.exports = {
