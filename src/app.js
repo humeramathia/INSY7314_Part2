@@ -5,6 +5,10 @@ const { errorMiddleware } = require("./middleware/errorMiddleware");
 const { notFoundMiddleware } = require("./middleware/notFound");
 const { sanitiseBody } = require("./middleware/sanitiseMiddleware");
 const authRoutes = require("./routes/authRoutes");
+const gigRoutes = require("./routes/gigRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const bookingRoutes = require("./routes/bookingRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
 
 const app = express();
 
@@ -35,6 +39,10 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/gigs", gigRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/transactions", transactionRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
