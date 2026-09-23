@@ -1,13 +1,49 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
 import ErrorBanner from "../components/ErrorBanner";
 import Spinner from "../components/Spinner";
 import { formatPrice } from "../format";
-import { SAMPLE_GIGS } from "../sampleData";
+import { deleteGig, myGigs } from "../api";
 
-export default function MyGigsPage({ gigs, onEdit, onDelete, loading, error }) {
+export default function MyGigsPage() {
   const navigate = useNavigate();
-  const items = gigs ?? SAMPLE_GIGS.filter((gig) => gig.freelancerId === "u-ada");
+  const [gigs, setGigs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  function load() {
+    return myGigs()
+      .then((data) => setGigs(data || []))
+      .catch((err) => setError(err.message));
+  }
+
+  useEffect(() => {
+    let live = true;
+    myGigs()
+      .then((data) => {
+        if (live) setGigs(data || []);
+      })
+      .catch((err) => {
+        if (live) setError(err.message);
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  async function handleDelete(id) {
+    setError("");
+    try {
+      await deleteGig(id);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   if (loading) return <Spinner label="Loading your gigs" />;
 
@@ -24,7 +60,7 @@ export default function MyGigsPage({ gigs, onEdit, onDelete, loading, error }) {
         </button>
       </div>
       <ErrorBanner message={error} />
-      {items.length === 0 ? (
+      {gigs.length === 0 ? (
         <EmptyState
           title="No gigs yet"
           message="Publish a service and it will appear in this list."
@@ -33,7 +69,7 @@ export default function MyGigsPage({ gigs, onEdit, onDelete, loading, error }) {
         />
       ) : (
         <div className="hh-list">
-          {items.map((gig) => (
+          {gigs.map((gig) => (
             <article key={gig.id} className="hh-panel hh-row">
               <div className="hh-row-top">
                 <div>
@@ -43,10 +79,10 @@ export default function MyGigsPage({ gigs, onEdit, onDelete, loading, error }) {
                 <span className="hh-price">{formatPrice(gig.price)}</span>
               </div>
               <div className="hh-row-actions">
-                <button type="button" className="hh-btn-secondary hh-btn" onClick={() => onEdit?.(gig.id)}>
+                <button type="button" className="hh-btn-secondary hh-btn" onClick={() => navigate(`/gigs/${gig.id}/edit`)}>
                   Edit
                 </button>
-                <button type="button" className="hh-btn hh-btn-danger" onClick={() => onDelete?.(gig.id)}>
+                <button type="button" className="hh-btn hh-btn-danger" onClick={() => handleDelete(gig.id)}>
                   Delete
                 </button>
               </div>

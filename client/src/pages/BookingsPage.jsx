@@ -1,11 +1,53 @@
+import { useEffect, useState } from "react";
 import EmptyState from "../components/EmptyState";
 import ErrorBanner from "../components/ErrorBanner";
 import Spinner from "../components/Spinner";
 import { formatPrice, formatDate } from "../format";
-import { SAMPLE_BOOKINGS } from "../sampleData";
+import { confirmBooking, listGigs, myBookings } from "../api";
+import { useAuth } from "../AuthContext";
 
-export default function BookingsPage({ bookings, role = "client", onConfirm, loading, error }) {
-  const items = bookings ?? SAMPLE_BOOKINGS;
+export default function BookingsPage() {
+  const { user } = useAuth();
+  const role = user?.role || "client";
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function load() {
+    const [rows, gigs] = await Promise.all([myBookings(), listGigs()]);
+    const titles = new Map((gigs || []).map((gig) => [gig.id, gig.title]));
+    return (rows || []).map((booking) => ({
+      ...booking,
+      gigTitle: titles.get(booking.gigId) || "Gig",
+    }));
+  }
+
+  useEffect(() => {
+    let live = true;
+    load()
+      .then((rows) => {
+        if (live) setBookings(rows);
+      })
+      .catch((err) => {
+        if (live) setError(err.message);
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  async function handleConfirm(id) {
+    setError("");
+    try {
+      await confirmBooking(id);
+      setBookings(await load());
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   if (loading) return <Spinner label="Loading bookings" />;
 
@@ -23,11 +65,11 @@ export default function BookingsPage({ bookings, role = "client", onConfirm, loa
         </div>
       </div>
       <ErrorBanner message={error} />
-      {items.length === 0 ? (
+      {bookings.length === 0 ? (
         <EmptyState title="No bookings yet" message="When a client books a gig, it will land here." />
       ) : (
         <div className="hh-list">
-          {items.map((booking) => (
+          {bookings.map((booking) => (
             <article key={booking.id} className="hh-panel hh-row">
               <div className="hh-row-top">
                 <div>
@@ -41,7 +83,7 @@ export default function BookingsPage({ bookings, role = "client", onConfirm, loa
               <div className="hh-row-top">
                 <span className="hh-price">{formatPrice(booking.amount)}</span>
                 {role === "client" && booking.status === "pending" ? (
-                  <button type="button" className="hh-btn" onClick={() => onConfirm?.(booking.id)}>
+                  <button type="button" className="hh-btn" onClick={() => handleConfirm(booking.id)}>
                     Confirm payment
                   </button>
                 ) : null}
