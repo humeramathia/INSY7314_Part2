@@ -1,95 +1,114 @@
-const fs = require("fs/promises");
-const path = require("path");
-const { randomUUID } = require("crypto");
+const mongoose = require("mongoose");
 
-const DATA_PATH = path.join(__dirname, "..", "data", "gigs.json");
-
-async function readGigs() {
-  try {
-    const raw = await fs.readFile(DATA_PATH, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    if (err.code === "ENOENT") {
-      await writeGigs([]);
-      return [];
-    }
-    throw err;
+const gigSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    freelancerId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+  },
+  {
+    timestamps: true,
   }
-}
+);
 
-async function writeGigs(gigs) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(gigs, null, 2), "utf8");
+const Gig = mongoose.model("Gig", gigSchema);
+
+function toPublic(doc) {
+  if (!doc) return null;
+  const gig = typeof doc.toObject === "function" ? doc.toObject() : doc;
+  return {
+    id: gig._id.toString(),
+    title: gig.title,
+    description: gig.description,
+    category: gig.category,
+    price: gig.price,
+    freelancerId: gig.freelancerId,
+    createdAt: gig.createdAt,
+    updatedAt: gig.updatedAt,
+  };
 }
 
 async function findAll() {
-  return readGigs();
+  const gigs = await Gig.find().sort({ createdAt: -1 });
+  return gigs.map(toPublic);
 }
 
 async function findById(id) {
-  const gigs = await readGigs();
-  return gigs.find((gig) => gig.id === id) || null;
+  if (!mongoose.isValidObjectId(id)) {
+    return null;
+  }
+
+  return toPublic(await Gig.findById(id));
 }
 
 async function findByFreelancerId(freelancerId) {
-  const gigs = await readGigs();
-  return gigs.filter((gig) => gig.freelancerId === freelancerId);
+  const gigs = await Gig.find({ freelancerId }).sort({ createdAt: -1 });
+  return gigs.map(toPublic);
 }
 
 async function createGig({ title, description, category, price, freelancerId }) {
-  const gigs = await readGigs();
-  const now = new Date().toISOString();
-  const gig = {
-    id: randomUUID(),
+  const gig = await Gig.create({
     title,
     description,
     category,
     price,
     freelancerId,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  gigs.push(gig);
-  await writeGigs(gigs);
-  return gig;
+  });
+  return toPublic(gig);
 }
 
 async function updateGig(id, fields) {
-  const gigs = await readGigs();
-  const index = gigs.findIndex((gig) => gig.id === id);
-
-  if (index === -1) {
+  if (!mongoose.isValidObjectId(id)) {
     return null;
   }
 
-  const current = gigs[index];
-  gigs[index] = {
-    ...current,
-    ...fields,
-    id: current.id,
-    freelancerId: current.freelancerId,
-    createdAt: current.createdAt,
-    updatedAt: new Date().toISOString(),
-  };
+  const gig = await Gig.findByIdAndUpdate(
+    id,
+    {
+      title: fields.title,
+      description: fields.description,
+      category: fields.category,
+      price: fields.price,
+    },
+    { new: true, runValidators: true }
+  );
 
-  await writeGigs(gigs);
-  return gigs[index];
+  return toPublic(gig);
 }
 
 async function deleteGig(id) {
-  const gigs = await readGigs();
-  const nextGigs = gigs.filter((gig) => gig.id !== id);
-
-  if (nextGigs.length === gigs.length) {
+  if (!mongoose.isValidObjectId(id)) {
     return false;
   }
 
-  await writeGigs(nextGigs);
-  return true;
+  const result = await Gig.findByIdAndDelete(id);
+  return Boolean(result);
 }
 
 module.exports = {
+  Gig,
   findAll,
   findById,
   findByFreelancerId,

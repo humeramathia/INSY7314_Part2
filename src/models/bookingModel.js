@@ -1,80 +1,97 @@
-const fs = require("fs/promises");
-const path = require("path");
-const { randomUUID } = require("crypto");
+const mongoose = require("mongoose");
 
-const DATA_PATH = path.join(__dirname, "..", "data", "bookings.json");
-
-async function readBookings() {
-  try {
-    const raw = await fs.readFile(DATA_PATH, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    if (err.code === "ENOENT") {
-      await writeBookings([]);
-      return [];
-    }
-    throw err;
+const bookingSchema = new mongoose.Schema(
+  {
+    gigId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    clientId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    freelancerId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ["pending", "confirmed"],
+      default: "pending",
+    },
+  },
+  {
+    timestamps: true,
   }
-}
+);
 
-async function writeBookings(bookings) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(bookings, null, 2), "utf8");
+const Booking = mongoose.model("Booking", bookingSchema);
+
+function toPublic(doc) {
+  if (!doc) return null;
+  const booking = typeof doc.toObject === "function" ? doc.toObject() : doc;
+  return {
+    id: booking._id.toString(),
+    gigId: booking.gigId,
+    clientId: booking.clientId,
+    freelancerId: booking.freelancerId,
+    amount: booking.amount,
+    status: booking.status,
+    createdAt: booking.createdAt,
+    updatedAt: booking.updatedAt,
+  };
 }
 
 async function findById(id) {
-  const bookings = await readBookings();
-  return bookings.find((booking) => booking.id === id) || null;
+  if (!mongoose.isValidObjectId(id)) {
+    return null;
+  }
+
+  return toPublic(await Booking.findById(id));
 }
 
 async function findMine(userId, role) {
-  const bookings = await readBookings();
-
-  if (role === "freelancer") {
-    return bookings.filter((booking) => booking.freelancerId === userId);
-  }
-
-  return bookings.filter((booking) => booking.clientId === userId);
+  const filter = role === "freelancer" ? { freelancerId: userId } : { clientId: userId };
+  const bookings = await Booking.find(filter).sort({ createdAt: -1 });
+  return bookings.map(toPublic);
 }
 
 async function createBooking({ gigId, clientId, freelancerId, amount }) {
-  const bookings = await readBookings();
-  const now = new Date().toISOString();
-  const booking = {
-    id: randomUUID(),
+  const booking = await Booking.create({
     gigId,
     clientId,
     freelancerId,
     amount,
     status: "pending",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  bookings.push(booking);
-  await writeBookings(bookings);
-  return booking;
+  });
+  return toPublic(booking);
 }
 
 async function confirmBooking(id) {
-  const bookings = await readBookings();
-  const index = bookings.findIndex((booking) => booking.id === id);
-
-  if (index === -1) {
+  if (!mongoose.isValidObjectId(id)) {
     return null;
   }
 
-  bookings[index] = {
-    ...bookings[index],
-    status: "confirmed",
-    updatedAt: new Date().toISOString(),
-  };
+  const booking = await Booking.findByIdAndUpdate(
+    id,
+    { status: "confirmed" },
+    { new: true }
+  );
 
-  await writeBookings(bookings);
-  return bookings[index];
+  return toPublic(booking);
 }
 
 module.exports = {
+  Booking,
   findById,
   findMine,
   createBooking,
