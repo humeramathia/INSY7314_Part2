@@ -1,56 +1,82 @@
-const fs = require("fs/promises");
-const path = require("path");
-const { randomUUID } = require("crypto");
+const mongoose = require("mongoose");
 
-const DATA_PATH = path.join(__dirname, "..", "data", "transactions.json");
-
-async function readTransactions() {
-  try {
-    const raw = await fs.readFile(DATA_PATH, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    if (err.code === "ENOENT") {
-      await writeTransactions([]);
-      return [];
-    }
-    throw err;
+const transactionSchema = new mongoose.Schema(
+  {
+    bookingId: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    gigId: {
+      type: String,
+      required: true,
+    },
+    clientId: {
+      type: String,
+      required: true,
+    },
+    freelancerId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    type: {
+      type: String,
+      required: true,
+      default: "booking",
+    },
+  },
+  {
+    timestamps: true,
   }
-}
+);
 
-async function writeTransactions(transactions) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(transactions, null, 2), "utf8");
+const Transaction = mongoose.model("Transaction", transactionSchema);
+
+function toPublic(doc) {
+  if (!doc) return null;
+  const transaction = typeof doc.toObject === "function" ? doc.toObject() : doc;
+  return {
+    id: transaction._id.toString(),
+    bookingId: transaction.bookingId,
+    gigId: transaction.gigId,
+    clientId: transaction.clientId,
+    freelancerId: transaction.freelancerId,
+    amount: transaction.amount,
+    type: transaction.type,
+    createdAt: transaction.createdAt,
+    updatedAt: transaction.updatedAt,
+  };
 }
 
 async function findByFreelancerId(freelancerId) {
-  const transactions = await readTransactions();
-  return transactions.filter((transaction) => transaction.freelancerId === freelancerId);
+  const transactions = await Transaction.find({ freelancerId }).sort({ createdAt: -1 });
+  return transactions.map(toPublic);
 }
 
 async function findByBookingId(bookingId) {
-  const transactions = await readTransactions();
-  return transactions.find((transaction) => transaction.bookingId === bookingId) || null;
+  return toPublic(await Transaction.findOne({ bookingId }));
 }
 
 async function createTransaction({ bookingId, gigId, clientId, freelancerId, amount }) {
-  const transactions = await readTransactions();
-  const transaction = {
-    id: randomUUID(),
+  const transaction = await Transaction.create({
     bookingId,
     gigId,
     clientId,
     freelancerId,
     amount,
     type: "booking",
-    createdAt: new Date().toISOString(),
-  };
-
-  transactions.push(transaction);
-  await writeTransactions(transactions);
-  return transaction;
+  });
+  return toPublic(transaction);
 }
 
 module.exports = {
+  Transaction,
   findByFreelancerId,
   findByBookingId,
   createTransaction,
