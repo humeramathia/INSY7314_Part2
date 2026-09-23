@@ -1,31 +1,74 @@
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import ErrorBanner from "../components/ErrorBanner";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
 import { formatPrice } from "../format";
-import { SAMPLE_GIGS } from "../sampleData";
+import { createBooking, getGig } from "../api";
+import { useAuth } from "../AuthContext";
 
-export default function GigDetailPage({ gig, onBook, canBook = true, loading, error, booking }) {
+export default function GigDetailPage() {
   const { id } = useParams();
-  const shown = gig ?? SAMPLE_GIGS.find((item) => item.id === id) ?? SAMPLE_GIGS[0];
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [gig, setGig] = useState(null);
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const canBook = user?.role === "client";
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    getGig(id)
+      .then((data) => {
+        if (live) setGig(data);
+      })
+      .catch((err) => {
+        if (live) {
+          setGig(null);
+          setError(err.message);
+        }
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [id]);
+
+  async function handleBook() {
+    setError("");
+    try {
+      const created = await createBooking(gig.id);
+      setBooking(created);
+      navigate("/bookings");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   if (loading) return <Spinner label="Loading gig" />;
-  if (!shown) {
-    return <EmptyState title="Gig not found" message="This listing may have been removed." />;
+  if (!gig) {
+    return (
+      <>
+        <ErrorBanner message={error} />
+        <EmptyState title="Gig not found" message="This listing may have been removed." />
+      </>
+    );
   }
 
   return (
     <section className="hh-detail">
       <article className="hh-panel hh-detail-hero">
-        <p className="hh-kicker">{shown.category}</p>
-        <h1>{shown.title}</h1>
+        <p className="hh-kicker">{gig.category}</p>
+        <h1>{gig.title}</h1>
         <div className="hh-detail-meta">
-          <span className="hh-price">{formatPrice(shown.price)}</span>
-          {shown.freelancerName ? (
-            <span className="hh-muted">Listed by {shown.freelancerName}</span>
-          ) : null}
+          <span className="hh-price">{formatPrice(gig.price)}</span>
+          {gig.freelancerName ? <span className="hh-muted">Listed by {gig.freelancerName}</span> : null}
         </div>
-        <p>{shown.description}</p>
+        <p>{gig.description}</p>
       </article>
       <aside className="hh-panel hh-aside">
         <h2>Book this gig</h2>
@@ -34,7 +77,7 @@ export default function GigDetailPage({ gig, onBook, canBook = true, loading, er
         {booking ? (
           <p className="hh-muted">Booking {booking.status}.</p>
         ) : canBook ? (
-          <button type="button" className="hh-btn" onClick={() => onBook?.(shown.id)}>
+          <button type="button" className="hh-btn" onClick={handleBook}>
             Book
           </button>
         ) : (

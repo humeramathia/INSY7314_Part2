@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const helmet = require("helmet");
 const { success } = require("./utils/response");
 const { errorMiddleware } = require("./middleware/errorMiddleware");
@@ -28,6 +29,14 @@ app.use(
         frameAncestors: ["'none'"],
       },
     },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 

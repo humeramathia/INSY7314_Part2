@@ -1,13 +1,33 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GigCard from "../components/GigCard";
 import EmptyState from "../components/EmptyState";
 import ErrorBanner from "../components/ErrorBanner";
 import Spinner from "../components/Spinner";
-import { SAMPLE_GIGS } from "../sampleData";
+import { listGigs } from "../api";
 
-export default function GigListPage({ gigs, loading, error }) {
+export default function GigListPage() {
   const navigate = useNavigate();
-  const items = gigs ?? SAMPLE_GIGS;
+  const [gigs, setGigs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    listGigs()
+      .then((data) => {
+        if (live) setGigs(data || []);
+      })
+      .catch((err) => {
+        if (live) setError(err.message);
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   if (loading) return <Spinner label="Loading gigs" />;
 
@@ -21,11 +41,11 @@ export default function GigListPage({ gigs, loading, error }) {
         </div>
       </div>
       <ErrorBanner message={error} />
-      {items.length === 0 ? (
+      {gigs.length === 0 ? (
         <EmptyState title="No gigs yet" message="When freelancers list a service, it will show up here." />
       ) : (
         <div className="hh-grid">
-          {items.map((gig) => (
+          {gigs.map((gig) => (
             <GigCard
               key={gig.id}
               title={gig.title}

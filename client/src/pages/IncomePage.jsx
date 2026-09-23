@@ -1,12 +1,39 @@
+import { useEffect, useState } from "react";
 import EmptyState from "../components/EmptyState";
 import ErrorBanner from "../components/ErrorBanner";
 import Spinner from "../components/Spinner";
 import { formatPrice, formatDate } from "../format";
-import { SAMPLE_TOTAL_INCOME, SAMPLE_TRANSACTIONS } from "../sampleData";
+import { listGigs, myTransactions } from "../api";
 
-export default function IncomePage({ items, totalIncome, loading, error }) {
-  const rows = items ?? SAMPLE_TRANSACTIONS;
-  const total = totalIncome ?? SAMPLE_TOTAL_INCOME;
+export default function IncomePage() {
+  const [items, setItems] = useState([]);
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    Promise.all([myTransactions(), listGigs()])
+      .then(([data, gigs]) => {
+        if (!live) return;
+        const titles = new Map((gigs || []).map((gig) => [gig.id, gig.title]));
+        const rows = (data?.items || []).map((row) => ({
+          ...row,
+          gigTitle: titles.get(row.gigId) || row.gigTitle || "Booking",
+        }));
+        setItems(rows);
+        setTotalIncome(data?.totalIncome || 0);
+      })
+      .catch((err) => {
+        if (live) setError(err.message);
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   if (loading) return <Spinner label="Loading income" />;
 
@@ -22,13 +49,13 @@ export default function IncomePage({ items, totalIncome, loading, error }) {
       <ErrorBanner message={error} />
       <div className="hh-panel hh-income-hero">
         <p className="hh-kicker">Total income</p>
-        <div className="hh-price">{formatPrice(total)}</div>
+        <div className="hh-price">{formatPrice(totalIncome)}</div>
       </div>
-      {rows.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState title="No payments yet" message="When a client confirms a booking, the amount appears here." />
       ) : (
         <div className="hh-list">
-          {rows.map((row) => (
+          {items.map((row) => (
             <article key={row.id} className="hh-panel hh-row">
               <div className="hh-row-top">
                 <div>

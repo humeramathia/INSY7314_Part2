@@ -1,19 +1,56 @@
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import GigForm from "../components/GigForm";
 import Spinner from "../components/Spinner";
-import { SAMPLE_GIGS } from "../sampleData";
+import ErrorBanner from "../components/ErrorBanner";
+import { getGig, updateGig } from "../api";
 
-export default function GigEditPage({ initialValues, onSubmit, error, loading }) {
+export default function GigEditPage() {
   const { id } = useParams();
-  const sample = SAMPLE_GIGS.find((gig) => gig.id === id) ?? SAMPLE_GIGS[0];
-  const values = initialValues ?? {
-    title: sample.title,
-    description: sample.description,
-    category: sample.category,
-    price: sample.price,
-  };
+  const navigate = useNavigate();
+  const [initialValues, setInitialValues] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  if (loading && !values.title) return <Spinner label="Loading gig" />;
+  useEffect(() => {
+    let live = true;
+    getGig(id)
+      .then((gig) => {
+        if (!live) return;
+        setInitialValues({
+          title: gig.title,
+          description: gig.description,
+          category: gig.category,
+          price: gig.price,
+        });
+      })
+      .catch((err) => {
+        if (live) setError(err.message);
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [id]);
+
+  async function handleSubmit(values) {
+    setError("");
+    setSaving(true);
+    try {
+      await updateGig(id, values);
+      navigate("/gigs/mine");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <Spinner label="Loading gig" />;
+  if (!initialValues) return <ErrorBanner message={error || "Gig not found"} />;
 
   return (
     <section>
@@ -25,10 +62,10 @@ export default function GigEditPage({ initialValues, onSubmit, error, loading })
         </div>
       </div>
       <GigForm
-        initialValues={values}
-        onSubmit={onSubmit}
+        initialValues={initialValues}
+        onSubmit={handleSubmit}
         error={error}
-        loading={loading}
+        loading={saving}
         submitLabel="Save changes"
       />
     </section>
