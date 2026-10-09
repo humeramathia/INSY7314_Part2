@@ -147,22 +147,23 @@ hustlehub-plus/
 ├── .env.example
 ├── .gitignore
 ├── package.json
+├── client/                        # React Vite SPA (port 5173)
 ├── certs/                         # local SSL files (not committed)
 ├── postman/
 │   ├── HustleHub-Part1.postman_collection.json
-│   └── screenshots/               # 12 Postman images below
+│   └── screenshots/               # Part 1 Postman images
 ├── scripts/
-│   └── generate-certs.js
+│   ├── generate-certs.js
+│   └── create-admin.js            # bootstrap an admin (not public register)
 └── src/
     ├── server.js                  # HTTPS only
     ├── app.js
-    ├── config/
+    ├── config/                    # MongoDB connection
     ├── routes/
     ├── controllers/
-    ├── models/
+    ├── models/                    # user, gig, booking, transaction
     ├── middleware/
-    ├── utils/
-    └── data/                      # users.json at runtime, gitignored
+    └── utils/
 ```
 
 Routes only map addresses. Middleware enforces security before a controller runs. Utils hold hashing and JWT. Models own storage. That split is itself a boundary: validation cannot be skipped by hiding logic in one large file (The Independent Institute of Education, 2026).
