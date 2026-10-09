@@ -20,6 +20,7 @@ Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and tran
 8. [Security decisions](#security-decisions)
 9. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
 10. [Reference list](#reference-list)
+11. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
 
 ---
 
@@ -446,6 +447,8 @@ The login token identifies the user. The password is still not returned.
 
 ## Reference list
 
+Cursor, 2026. *Cursor*. [generative AI coding assistant]. Available at: <https://www.cursor.com/> [Accessed 9 October 2026].
+
 Grassi, P.A., Garcia, M.E. and Fenton, J.L., 2017. *Digital identity guidelines: authentication and lifecycle management*. NIST Special Publication 800-63B. [online] Gaithersburg: National Institute of Standards and Technology. Available at: <https://doi.org/10.6028/NIST.SP.800-63B> [Accessed 6 September 2026].
 
 Jones, M., Bradley, J. and Sakimura, N., 2015. *JSON web token (JWT)*. RFC 7519. [online] Internet Engineering Task Force. Available at: <https://www.rfc-editor.org/rfc/rfc7519> [Accessed 6 September 2026].
@@ -466,4 +469,22 @@ Provos, N. and Mazières, D., 1999. A future-adaptable password scheme. *Proceed
 
 Rescorla, E., 2018. *The transport layer security (TLS) protocol version 1.3*. RFC 8446. [online] Internet Engineering Task Force. Available at: <https://www.rfc-editor.org/rfc/rfc8446> [Accessed 6 September 2026].
 
+The Independent Institute of Education, 2025. *Guidelines for responsible AI use at The IIE*. [pdf] [s.l.]: The Independent Institute of Education.
+
 The Independent Institute of Education, 2026. *Information systems 3D / Application development security: POE (paper and marking rubric)*. [pdf] [s.l.]: The Independent Institute of Education.
+
+---
+
+## Disclosure of AI usage in this assessment
+
+This annexure follows The IIE’s labelling and disclosure rules for generative AI (The Independent Institute of Education, 2025).
+
+**Section(s) of the assessment where AI was used:** Git merges and branch integration (Humera, Mo, Lilitha, and `main`), not the written security rationale or the original application design.
+
+**Name of AI tool(s) used:** Cursor (Cursor, 2026).
+
+**Purpose / intention behind use:** The group used Cursor to **understand merge conflicts** and to **sort conflicts and branches**. Several people were committing to the same repository. We did not want to delete someone else’s code by mistake while accepting or rejecting conflict markers. Cursor was used as a second pair of eyes to explain what each side of a conflict meant so we could keep the correct Humera, Mo, and Lilitha work. We reviewed every suggested resolution before it was committed. Cursor did not replace group decisions, and we remain responsible for the quality and integrity of this submission (The Independent Institute of Education, 2025).
+
+**Date(s) on which generative AI was used:** September–October 2026, during branch merges onto `Humera` and `main`.
+
+**Chat record:** Cursor chats are stored in the local Cursor session used by the group leader. There is no public shareable chat URL. Direct AI wording was not copied into this README or into production code as an unreviewed block.
