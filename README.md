@@ -201,6 +201,16 @@ npm run dev
 
 Open **`https://localhost:5173`**. If the browser blocks the Vite cert, proceed past the warning for local development.
 
+### Create an admin
+
+Public `POST /api/auth/register` only accepts `client` or `freelancer`. To bootstrap an admin, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` (see `.env.example`) and run:
+
+```bash
+npm run create-admin
+```
+
+The script hashes the password with bcrypt (12 rounds) and writes a user with role `admin`. Do not expose this as a public signup form.
+
 ---
 
 ## API endpoints
