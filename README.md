@@ -119,10 +119,9 @@ Gigs and bookings are drawn as future work so the diagram still matches the MERN
 
 This is the **filing cabinet**. The arrow labelled **Queries** is reception asking: “save this user” or “find this email”.
 
-**Part 1:** the cabinet is a file (`users.json`), which the brief allows instead of a live database (The Independent Institute of Education, 2026).  
-**Later:** the same cabinet becomes **MongoDB**, the “M” in MERN (MongoDB, Inc., 2024). The green shop and blue reception stay; only this floor is swapped.
+**Part 2:** the cabinet is **MongoDB**, the “M” in MERN (MongoDB, Inc., 2024). Collections hold users, gigs, bookings, and transactions. The green shop and blue reception stay; this floor is no longer a local JSON file.
 
-The cabinet **never** sees a plaintext password. It only ever stores a bcrypt hash.
+The cabinet **never** sees a plaintext password. It only ever stores a bcrypt hash. Gigs, bookings, and transactions are queried through Mongoose models in `src/models/`.
 
 ### System boundaries (who may touch what)
 
