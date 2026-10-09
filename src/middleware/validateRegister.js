@@ -62,8 +62,8 @@ const validateRegister = [
     .trim()
     .notEmpty()
     .withMessage("Role is required")
-    .isIn(["client", "freelancer", "admin"])
-    .withMessage("Role must be client, freelancer or admin"),
+    .isIn(["client", "freelancer"])
+    .withMessage("Role must be client or freelancer"),
   handleValidationErrors,
 ];
 

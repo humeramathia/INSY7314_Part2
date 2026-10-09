@@ -8,12 +8,12 @@ function signToken(payload) {
       role: payload.role,
     },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
+    { algorithm: "HS256", expiresIn: JWT_EXPIRES_IN }
   );
 }
 
 function verifyToken(token) {
-  return jwt.verify(token, JWT_SECRET);
+  return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] });
 }
 
 module.exports = {

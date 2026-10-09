@@ -4,13 +4,25 @@ const { signToken } = require("../utils/jwt");
 const { createUser, findByEmail, findById, emailExists } = require("../models/userModel");
 
 function toPublicUser(user) {
-  const { password, ...safeUser } = user;
-  return safeUser;
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
 }
 
 async function register(req, res, next) {
   try {
     const { name, email, password, role } = req.body;
+
+    const publicRole = String(role).trim().toLowerCase();
+
+    if (publicRole !== "client" && publicRole !== "freelancer") {
+      return fail(res, 400, "Role must be client or freelancer");
+    }
 
     if (await emailExists(email)) {
       return fail(res, 409, "Email already registered");
@@ -21,7 +33,7 @@ async function register(req, res, next) {
       name: String(name).trim(),
       email,
       password: hashedPassword,
-      role: String(role).trim().toLowerCase(),
+      role: publicRole,
     });
 
     return success(res, 201, "User registered successfully", toPublicUser(user));
@@ -45,7 +57,10 @@ async function login(req, res, next) {
       return fail(res, 401, "Invalid email or password");
     }
 
-    const token = signToken({ id: user.id, role: user.role });
+    const token = signToken({
+  id: user._id.toString(),
+  role: user.role,
+});
 
     return success(res, 200, "Login successful", {
       token,

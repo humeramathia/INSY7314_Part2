@@ -1,8 +1,8 @@
-# HustleHub+ — Part 1
+# HustleHub+ — Part 2
 
 HustleHub+ is a secure freelance marketplace. Freelancers advertise services. Clients browse and book those services. Bookings later create simulated payment records so freelancers can see income and estimated tax. Because the platform will hold passwords, identity, and money-related data, security is designed in from the first version, not added afterwards (The Independent Institute of Education, 2026; Open Worldwide Application Security Project, 2021).
 
-Part 1 is the **secure backend foundation**: a Node.js and Express API for registration, login, and one JWT-protected route, served only over HTTPS.
+Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and transactions; a React client on HTTPS; JWT plus RBAC for client, freelancer, and admin; and the Part 1 security controls kept in place.
 
 **Demonstration video:** [HustleHub+ Part 1 demo](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026).
 
@@ -20,17 +20,18 @@ Part 1 is the **secure backend foundation**: a Node.js and Express API for regis
 8. [Security decisions](#security-decisions)
 9. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
 10. [Reference list](#reference-list)
+11. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
 
 ---
 
 ## Group members
 
-| Name | Student number | Role on Part 1 |
+| Name | Student number | Role on Part 2 |
 | --- | --- | --- |
-| **Humera Mathia** (Group Leader) | ST10276384 | Node.js / Express API: folder layout, routes, controllers, models, file-based user storage, register / login / protected `/me`, HTTPS server, integration onto `main` |
-| **Mohammed Ba Yazed** | ST10174227 | Password hashing (bcrypt), JWT sign/verify and secret handling, input validation (including unexpected fields) |
-| **Lilitha Mlobi** | ST10454944 | MERN architecture diagram, security write-up, HTTPS setup documentation |
-| **Imraan Nordien** | ST10434419 | Postman collection, API response screenshots, [demonstration video](https://youtu.be/DcsFY8W7TBE) |
+| **Humera Mathia** (Group Leader) | ST10276384 | Node.js / Express API: gigs, bookings, transactions, HTTPS server, React client, frontend Vitest suite, integration onto `main` |
+| **Mohammed Ba Yazed** | ST10174227 | MongoDB users and security: bcrypt, JWT, validation, sanitisation, rate limiting, Helmet/CSP |
+| **Lilitha Mlobi** | ST10454944 | Wire the React UI to the live API: auth context, protected routes, gig/booking/income screens |
+| **Imraan Nordien** | ST10434419 | Postman collection, Newman runs, API response screenshots, demonstration video |
 
 ---
 
@@ -44,11 +45,11 @@ Imagine a digital marketplace, like a noticeboard plus a cash register. Three ki
 | **Freelancer** | List a service, see bookings, later see income and tax |
 | **Admin** | Look after the platform |
 
-Part 1 does **not** yet build the website, gigs, or bookings. It only proves a more basic promise: a person can **create an account**, **log in**, and then prove “it is still me” on a later request, without sending the password again. The Independent Institute of Education (2026) requires that this first slice already use hashing, tokens, validation, and HTTPS, because credentials are already in play.
+Part 2 builds the **website, gigs, bookings, and income views**. A person can still **create an account**, **log in**, and prove “it is still me” with a JWT. On top of that, clients book gigs, freelancers manage listings and income, and an admin oversees users. The Independent Institute of Education (2026) requires hashing, tokens, validation, sanitisation, rate limiting, Helmet/CSP, and HTTPS because credentials and money-related records are in play.
 
-Sensitive data in this part is the **email and password** and the **user id and role**. Those never travel or sit in storage in a careless way.
+Sensitive data in this part is the **email and password**, the **user id and role**, and **booking and transaction records**. Those never travel or sit in storage in a careless way.
 
-Users are saved in a local file (`src/data/users.json`) so the API can run without installing MongoDB yet. The file is not committed to Git. Hashing and checks still happen **before** anything is written, so the same security layer can sit in front of MongoDB in Part 2 (MongoDB, Inc., 2024).
+Users, gigs, bookings, and transactions are saved in **MongoDB** (`hustlehub` on port `27017`). Hashing and checks still happen **before** anything is written (MongoDB, Inc., 2024). Public registration only allows `client` or `freelancer`; admin accounts are created with `npm run create-admin`.
 
 ---
 
@@ -73,9 +74,9 @@ If you have never built software, treat the picture below as a **three-storey bu
 
 This is the **shop window**: the HustleHub+ screen a person would open in Chrome or Edge. “SPA” means single-page application: the page does not fully reload for every click (Meta Platforms, 2024).
 
-**Part 1 status:** this website is **not built yet**. We stand at the same door using **Postman**, a tool that sends the same kind of messages a React app will send later.
+**Part 2 status:** this website **is built**. The React SPA lives in `client/` and runs on `https://localhost:5173`. Postman can still send the same messages for API evidence.
 
-**Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** — think of a signed, time-limited visitor badge — not the password itself (Jones, Bradley and Sakimura, 2015).
+**Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** in `localStorage` (`hh_token`) — think of a signed, time-limited visitor badge — not the password itself (Jones, Bradley and Sakimura, 2015).
 
 ### The arrow between green and blue — HTTPS (TLS)
 
@@ -119,10 +120,9 @@ Gigs and bookings are drawn as future work so the diagram still matches the MERN
 
 This is the **filing cabinet**. The arrow labelled **Queries** is reception asking: “save this user” or “find this email”.
 
-**Part 1:** the cabinet is a file (`users.json`), which the brief allows instead of a live database (The Independent Institute of Education, 2026).  
-**Later:** the same cabinet becomes **MongoDB**, the “M” in MERN (MongoDB, Inc., 2024). The green shop and blue reception stay; only this floor is swapped.
+**Part 2:** the cabinet is **MongoDB**, the “M” in MERN (MongoDB, Inc., 2024). Collections hold users, gigs, bookings, and transactions. The green shop and blue reception stay; this floor is no longer a local JSON file.
 
-The cabinet **never** sees a plaintext password. It only ever stores a bcrypt hash.
+The cabinet **never** sees a plaintext password. It only ever stores a bcrypt hash. Gigs, bookings, and transactions are queried through Mongoose models in `src/models/`.
 
 ### System boundaries (who may touch what)
 
@@ -148,22 +148,23 @@ hustlehub-plus/
 ├── .env.example
 ├── .gitignore
 ├── package.json
+├── client/                        # React Vite SPA (port 5173)
 ├── certs/                         # local SSL files (not committed)
 ├── postman/
 │   ├── HustleHub-Part1.postman_collection.json
-│   └── screenshots/               # 12 Postman images below
+│   └── screenshots/               # Part 1 Postman images
 ├── scripts/
-│   └── generate-certs.js
+│   ├── generate-certs.js
+│   └── create-admin.js            # bootstrap an admin (not public register)
 └── src/
     ├── server.js                  # HTTPS only
     ├── app.js
-    ├── config/
+    ├── config/                    # MongoDB connection
     ├── routes/
     ├── controllers/
-    ├── models/
+    ├── models/                    # user, gig, booking, transaction
     ├── middleware/
-    ├── utils/
-    └── data/                      # users.json at runtime, gitignored
+    └── utils/
 ```
 
 Routes only map addresses. Middleware enforces security before a controller runs. Utils hold hashing and JWT. Models own storage. That split is itself a boundary: validation cannot be skipped by hiding logic in one large file (The Independent Institute of Education, 2026).
@@ -171,6 +172,8 @@ Routes only map addresses. Middleware enforces security before a controller runs
 ---
 
 ## How to run
+
+Install [MongoDB Community](https://www.mongodb.com/try/download/community) and start the service so it listens on `27017`. Copy `.env.example` to `.env` and keep `MONGODB_URI=mongodb://127.0.0.1:27017/hustlehub`.
 
 ```bash
 npm install
@@ -183,9 +186,31 @@ On macOS or Linux use `cp .env.example .env`.
 
 1. Set a long random `JWT_SECRET` in `.env`. Never commit `.env`.
 2. `npm run certs` creates `certs/key.pem` and `certs/cert.pem` (gitignored).
-3. The API listens on **`https://localhost:3000`**.
+3. The API listens on **`https://localhost:3000`** and talks to MongoDB on **`27017`**.
 
 Health check: `GET https://localhost:3000/api/health`
+
+### React client
+
+The SPA uses Vite with a local HTTPS cert. `VITE_API_URL` defaults to `https://localhost:3000`. Accept the API self-signed certificate in the browser first (open the API health URL once), then start the client:
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+Open **`https://localhost:5173`**. If the browser blocks the Vite cert, proceed past the warning for local development.
+
+### Create an admin
+
+Public `POST /api/auth/register` only accepts `client` or `freelancer`. To bootstrap an admin, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` (see `.env.example`) and run:
+
+```bash
+npm run create-admin
+```
+
+The script hashes the password with bcrypt (12 rounds) and writes a user with role `admin`. Do not expose this as a public signup form.
 
 ---
 
@@ -302,9 +327,41 @@ The brief asks not only **what** was used, but **why** (The Independent Institut
 
 ### Controlled error handling
 
-**What:** Unexpected errors return `{ success: false, message: "Something went wrong" }`. Unknown URLs return JSON `404`.
+**What:** Unexpected errors return `{ success: false, message: "Something went wrong" }`. Unknown URLs return JSON `404`. JSON responses use `Cache-Control: no-store` so tokens and user records are not cached.
 
 **Why:** Raw errors can leak stack traces, paths, or configuration and help an attacker map the server (Open Worldwide Application Security Project, 2021).
+
+### Rate limiting, Helmet, and sanitisation
+
+**What:** Auth routes are limited to 5 requests per 15 minutes. Booking routes are limited to 10 per 15 minutes. Helmet sets CSP. Request bodies are sanitised before controllers run.
+
+**Why:** Brute-force login and booking spam are slowed at the door. CSP reduces XSS impact in the browser. Sanitisation strips unexpected or dangerous input so Mongo queries and HTML views do not receive raw attacker strings (Open Worldwide Application Security Project, 2021).
+
+### Public register cannot create admin
+
+**What:** `validateRegister` and the auth controller only allow `client` or `freelancer`. The React register form has no Admin option. Admin accounts are created with `npm run create-admin`.
+
+**Why:** An open signup that accepts `admin` would let anyone grant themselves platform privileges. Privilege must be issued by an operator, not by the public form.
+
+---
+
+## Frontend tests
+
+The React client uses **Vitest** and React Testing Library (`jsdom`). Tests cover login, register, gig list/detail/create/edit, bookings, income, admin, layout, protected routes, and shared components.
+
+From the repo root:
+
+```bash
+npm run test:client
+```
+
+Or from `client/`:
+
+```bash
+npm test
+```
+
+Coverage output is gitignored (`client/coverage/`).
 
 ---
 
@@ -390,6 +447,8 @@ The login token identifies the user. The password is still not returned.
 
 ## Reference list
 
+Cursor, 2026. *Cursor*. [generative AI coding assistant]. Available at: <https://www.cursor.com/> [Accessed 9 October 2026].
+
 Grassi, P.A., Garcia, M.E. and Fenton, J.L., 2017. *Digital identity guidelines: authentication and lifecycle management*. NIST Special Publication 800-63B. [online] Gaithersburg: National Institute of Standards and Technology. Available at: <https://doi.org/10.6028/NIST.SP.800-63B> [Accessed 6 September 2026].
 
 Jones, M., Bradley, J. and Sakimura, N., 2015. *JSON web token (JWT)*. RFC 7519. [online] Internet Engineering Task Force. Available at: <https://www.rfc-editor.org/rfc/rfc7519> [Accessed 6 September 2026].
@@ -410,4 +469,22 @@ Provos, N. and Mazières, D., 1999. A future-adaptable password scheme. *Proceed
 
 Rescorla, E., 2018. *The transport layer security (TLS) protocol version 1.3*. RFC 8446. [online] Internet Engineering Task Force. Available at: <https://www.rfc-editor.org/rfc/rfc8446> [Accessed 6 September 2026].
 
+The Independent Institute of Education, 2025. *Guidelines for responsible AI use at The IIE*. [pdf] [s.l.]: The Independent Institute of Education.
+
 The Independent Institute of Education, 2026. *Information systems 3D / Application development security: POE (paper and marking rubric)*. [pdf] [s.l.]: The Independent Institute of Education.
+
+---
+
+## Disclosure of AI usage in this assessment
+
+This annexure follows The IIE’s labelling and disclosure rules for generative AI (The Independent Institute of Education, 2025).
+
+**Section(s) of the assessment where AI was used:** Git merges and branch integration (Humera, Mo, Lilitha, and `main`), not the written security rationale or the original application design.
+
+**Name of AI tool(s) used:** Cursor (Cursor, 2026).
+
+**Purpose / intention behind use:** The group used Cursor to **understand merge conflicts** and to **sort conflicts and branches**. Several people were committing to the same repository. We did not want to delete someone else’s code by mistake while accepting or rejecting conflict markers. Cursor was used as a second pair of eyes to explain what each side of a conflict meant so we could keep the correct Humera, Mo, and Lilitha work. We reviewed every suggested resolution before it was committed. Cursor did not replace group decisions, and we remain responsible for the quality and integrity of this submission (The Independent Institute of Education, 2025).
+
+**Date(s) on which generative AI was used:** September–October 2026, during branch merges onto `Humera` and `main`.
+
+**Chat record:** Cursor chats are stored in the local Cursor session used by the group leader. There is no public shareable chat URL. Direct AI wording was not copied into this README or into production code as an unreviewed block.
