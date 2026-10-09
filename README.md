@@ -344,6 +344,26 @@ The brief asks not only **what** was used, but **why** (The Independent Institut
 
 ---
 
+## Frontend tests
+
+The React client uses **Vitest** and React Testing Library (`jsdom`). Tests cover login, register, gig list/detail/create/edit, bookings, income, admin, layout, protected routes, and shared components.
+
+From the repo root:
+
+```bash
+npm run test:client
+```
+
+Or from `client/`:
+
+```bash
+npm test
+```
+
+Coverage output is gitignored (`client/coverage/`).
+
+---
+
 ## Testing, screenshots, and demonstration
 
 Imraan Nordien (ST10434419) produced the Postman collection (`postman/HustleHub-Part1.postman_collection.json`), the twelve screenshots below, and the demonstration video.
