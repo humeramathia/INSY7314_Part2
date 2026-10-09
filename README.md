@@ -73,9 +73,9 @@ If you have never built software, treat the picture below as a **three-storey bu
 
 This is the **shop window**: the HustleHub+ screen a person would open in Chrome or Edge. “SPA” means single-page application: the page does not fully reload for every click (Meta Platforms, 2024).
 
-**Part 1 status:** this website is **not built yet**. We stand at the same door using **Postman**, a tool that sends the same kind of messages a React app will send later.
+**Part 2 status:** this website **is built**. The React SPA lives in `client/` and runs on `https://localhost:5173`. Postman can still send the same messages for API evidence.
 
-**Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** — think of a signed, time-limited visitor badge — not the password itself (Jones, Bradley and Sakimura, 2015).
+**Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** in `localStorage` (`hh_token`) — think of a signed, time-limited visitor badge — not the password itself (Jones, Bradley and Sakimura, 2015).
 
 ### The arrow between green and blue — HTTPS (TLS)
 
