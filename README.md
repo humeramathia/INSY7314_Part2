@@ -189,6 +189,18 @@ On macOS or Linux use `cp .env.example .env`.
 
 Health check: `GET https://localhost:3000/api/health`
 
+### React client
+
+The SPA uses Vite with a local HTTPS cert. `VITE_API_URL` defaults to `https://localhost:3000`. Accept the API self-signed certificate in the browser first (open the API health URL once), then start the client:
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+Open **`https://localhost:5173`**. If the browser blocks the Vite cert, proceed past the warning for local development.
+
 ---
 
 ## API endpoints
