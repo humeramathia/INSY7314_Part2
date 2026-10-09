@@ -47,7 +47,8 @@ describe("MyGigsPage", () => {
     );
 
     expect(await screen.findByText("No gigs yet")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "New gig" }));
+    const [newGig] = screen.getAllByRole("button", { name: "New gig" });
+    await user.click(newGig);
     expect(screen.getByText("New gig form")).toBeInTheDocument();
   });
 });
