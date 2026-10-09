@@ -62,6 +62,7 @@ export default function GigEditPage() {
         </div>
       </div>
       <GigForm
+        key={id}
         initialValues={initialValues}
         onSubmit={handleSubmit}
         error={error}

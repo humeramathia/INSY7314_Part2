@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import ErrorBanner from "./ErrorBanner";
 
 const EMPTY = {
@@ -10,16 +10,6 @@ const EMPTY = {
 
 export default function GigForm({ initialValues, onSubmit, error, loading, submitLabel = "Save gig" }) {
   const [values, setValues] = useState({ ...EMPTY, ...initialValues });
-
-  useEffect(() => {
-    if (!initialValues) return;
-    setValues({ ...EMPTY, ...initialValues });
-  }, [
-    initialValues?.title,
-    initialValues?.description,
-    initialValues?.category,
-    initialValues?.price,
-  ]);
 
   function update(field, value) {
     setValues((current) => ({ ...current, [field]: value }));

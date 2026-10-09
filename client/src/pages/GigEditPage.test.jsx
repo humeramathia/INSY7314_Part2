@@ -32,8 +32,10 @@ describe("GigEditPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByDisplayValue("Window cleaning")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Window cleaning plus" } });
+    const titleInput = await screen.findByLabelText("Title");
+    expect(titleInput).toHaveValue("Window cleaning");
+    fireEvent.change(titleInput, { target: { value: "Window cleaning plus" } });
+    expect(titleInput).toHaveValue("Window cleaning plus");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(updateGig).toHaveBeenCalledWith("gig1", expect.objectContaining({
