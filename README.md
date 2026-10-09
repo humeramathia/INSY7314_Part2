@@ -172,6 +172,8 @@ Routes only map addresses. Middleware enforces security before a controller runs
 
 ## How to run
 
+Install [MongoDB Community](https://www.mongodb.com/try/download/community) and start the service so it listens on `27017`. Copy `.env.example` to `.env` and keep `MONGODB_URI=mongodb://127.0.0.1:27017/hustlehub`.
+
 ```bash
 npm install
 copy .env.example .env
@@ -183,7 +185,7 @@ On macOS or Linux use `cp .env.example .env`.
 
 1. Set a long random `JWT_SECRET` in `.env`. Never commit `.env`.
 2. `npm run certs` creates `certs/key.pem` and `certs/cert.pem` (gitignored).
-3. The API listens on **`https://localhost:3000`**.
+3. The API listens on **`https://localhost:3000`** and talks to MongoDB on **`27017`**.
 
 Health check: `GET https://localhost:3000/api/health`
 
