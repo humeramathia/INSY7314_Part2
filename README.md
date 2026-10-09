@@ -44,11 +44,11 @@ Imagine a digital marketplace, like a noticeboard plus a cash register. Three ki
 | **Freelancer** | List a service, see bookings, later see income and tax |
 | **Admin** | Look after the platform |
 
-Part 1 does **not** yet build the website, gigs, or bookings. It only proves a more basic promise: a person can **create an account**, **log in**, and then prove “it is still me” on a later request, without sending the password again. The Independent Institute of Education (2026) requires that this first slice already use hashing, tokens, validation, and HTTPS, because credentials are already in play.
+Part 2 builds the **website, gigs, bookings, and income views**. A person can still **create an account**, **log in**, and prove “it is still me” with a JWT. On top of that, clients book gigs, freelancers manage listings and income, and an admin oversees users. The Independent Institute of Education (2026) requires hashing, tokens, validation, sanitisation, rate limiting, Helmet/CSP, and HTTPS because credentials and money-related records are in play.
 
-Sensitive data in this part is the **email and password** and the **user id and role**. Those never travel or sit in storage in a careless way.
+Sensitive data in this part is the **email and password**, the **user id and role**, and **booking and transaction records**. Those never travel or sit in storage in a careless way.
 
-Users are saved in a local file (`src/data/users.json`) so the API can run without installing MongoDB yet. The file is not committed to Git. Hashing and checks still happen **before** anything is written, so the same security layer can sit in front of MongoDB in Part 2 (MongoDB, Inc., 2024).
+Users, gigs, bookings, and transactions are saved in **MongoDB** (`hustlehub` on port `27017`). Hashing and checks still happen **before** anything is written (MongoDB, Inc., 2024). Public registration only allows `client` or `freelancer`; admin accounts are created with `npm run create-admin`.
 
 ---
 
