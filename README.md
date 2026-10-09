@@ -25,12 +25,12 @@ Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and tran
 
 ## Group members
 
-| Name | Student number | Role on Part 1 |
+| Name | Student number | Role on Part 2 |
 | --- | --- | --- |
-| **Humera Mathia** (Group Leader) | ST10276384 | Node.js / Express API: folder layout, routes, controllers, models, file-based user storage, register / login / protected `/me`, HTTPS server, integration onto `main` |
-| **Mohammed Ba Yazed** | ST10174227 | Password hashing (bcrypt), JWT sign/verify and secret handling, input validation (including unexpected fields) |
-| **Lilitha Mlobi** | ST10454944 | MERN architecture diagram, security write-up, HTTPS setup documentation |
-| **Imraan Nordien** | ST10434419 | Postman collection, API response screenshots, [demonstration video](https://youtu.be/DcsFY8W7TBE) |
+| **Humera Mathia** (Group Leader) | ST10276384 | Node.js / Express API: gigs, bookings, transactions, HTTPS server, React client, frontend Vitest suite, integration onto `main` |
+| **Mohammed Ba Yazed** | ST10174227 | MongoDB users and security: bcrypt, JWT, validation, sanitisation, rate limiting, Helmet/CSP |
+| **Lilitha Mlobi** | ST10454944 | Wire the React UI to the live API: auth context, protected routes, gig/booking/income screens |
+| **Imraan Nordien** | ST10434419 | Postman collection, Newman runs, API response screenshots, demonstration video |
 
 ---
 
