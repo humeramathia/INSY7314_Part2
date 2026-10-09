@@ -1,0 +1,163 @@
+{
+  "pass": 26,
+  "fail": 0,
+  "total": 26,
+  "results": [
+    {
+      "id": "HTTPS health endpoint",
+      "owasp": "A02 Cryptographic Failures",
+      "pass": true,
+      "detail": "status 200"
+    },
+    {
+      "id": "HSTS",
+      "owasp": "A02 Cryptographic Failures",
+      "pass": true,
+      "detail": "max-age=31536000; includeSubDomains"
+    },
+    {
+      "id": "X-Content-Type-Options nosniff",
+      "owasp": "A05 Security Misconfiguration",
+      "pass": true,
+      "detail": "nosniff"
+    },
+    {
+      "id": "X-Frame-Options",
+      "owasp": "A04 Insecure Design",
+      "pass": true,
+      "detail": "SAMEORIGIN"
+    },
+    {
+      "id": "CSP present",
+      "owasp": "A05 Security Misconfiguration",
+      "pass": true,
+      "detail": "default-src 'none';base-uri 'none';font-src 'self' https: data:;form-action 'none';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr '"
+    },
+    {
+      "id": "Referrer-Policy",
+      "owasp": "A05 Security Misconfiguration",
+      "pass": true,
+      "detail": "no-referrer"
+    },
+    {
+      "id": "COOP",
+      "owasp": "A05 Security Misconfiguration",
+      "pass": true,
+      "detail": "same-origin"
+    },
+    {
+      "id": "CORS does not reflect unknown origin",
+      "owasp": "A05 Security Misconfiguration",
+      "pass": true,
+      "detail": "ACAO=undefined"
+    },
+    {
+      "id": "CORS allows Vite origin",
+      "owasp": "A05 Security Misconfiguration",
+      "pass": true,
+      "detail": "http://localhost:5173"
+    },
+    {
+      "id": "GET /api/auth/me without token is 401",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Access denied. No token provided.\"}"
+    },
+    {
+      "id": "GET /api/auth/me with invalid token is 401",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Invalid or expired token.\"}"
+    },
+    {
+      "id": "GET /api/gigs/mine without token is 401",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Access denied. No token provided.\"}"
+    },
+    {
+      "id": "GET /api/admin/gigs without token is 401",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Access denied. No token provided.\"}"
+    },
+    {
+      "id": "POST /api/bookings without token is 401",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Access denied. No token provided.\"}"
+    },
+    {
+      "id": "GET /api/transactions/mine without token is 401",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Access denied. No token provided.\"}"
+    },
+    {
+      "id": "Register does not return password",
+      "owasp": "A07 Identification and Authentication Failures",
+      "pass": true,
+      "detail": "keys=id,name,email,role,createdAt,updatedAt"
+    },
+    {
+      "id": "Login returns JWT and omits password",
+      "owasp": "A07 Identification and Authentication Failures",
+      "pass": true,
+      "detail": "login status 200"
+    },
+    {
+      "id": "Client cannot create gig",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Forbidden. Insufficient permissions.\"}"
+    },
+    {
+      "id": "Client cannot read freelancer income",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Forbidden. Insufficient permissions.\"}"
+    },
+    {
+      "id": "Client cannot open admin gigs",
+      "owasp": "A01 Broken Access Control",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Forbidden. Insufficient permissions.\"}"
+    },
+    {
+      "id": "Unexpected fields rejected on gig create",
+      "owasp": "A03 Injection",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Unexpected field(s): freelancerId\"}"
+    },
+    {
+      "id": "Mongo operator keys rejected",
+      "owasp": "A03 Injection",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Invalid or unsafe request data.\"}"
+    },
+    {
+      "id": "HTML tags stripped from stored title",
+      "owasp": "A03 Injection",
+      "pass": true,
+      "detail": "title=Bold window status=201"
+    },
+    {
+      "id": "Malformed JSON does not leak stack",
+      "owasp": "A09 Security Logging and Monitoring Failures",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Invalid JSON request body.\"}"
+    },
+    {
+      "id": "Validation rejects incomplete register",
+      "owasp": "A07 Identification and Authentication Failures",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Name is required\"}"
+    },
+    {
+      "id": "Unknown route is JSON 404",
+      "owasp": "A05 Security Misconfiguration",
+      "pass": true,
+      "detail": "{\"success\":false,\"message\":\"Route not found\"}"
+    }
+  ]
+}

@@ -18,6 +18,12 @@ async function register(req, res, next) {
   try {
     const { name, email, password, role } = req.body;
 
+    const publicRole = String(role).trim().toLowerCase();
+
+    if (publicRole !== "client" && publicRole !== "freelancer") {
+      return fail(res, 400, "Role must be client or freelancer");
+    }
+
     if (await emailExists(email)) {
       return fail(res, 409, "Email already registered");
     }
@@ -27,7 +33,7 @@ async function register(req, res, next) {
       name: String(name).trim(),
       email,
       password: hashedPassword,
-      role: String(role).trim().toLowerCase(),
+      role: publicRole,
     });
 
     return success(res, 201, "User registered successfully", toPublicUser(user));

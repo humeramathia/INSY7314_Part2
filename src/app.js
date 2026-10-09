@@ -40,6 +40,11 @@ app.use(
   })
 );
 
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
+
 app.use(express.json());
 app.use(sanitiseBody);
 

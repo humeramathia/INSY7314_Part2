@@ -53,7 +53,6 @@ export default function RegisterForm({ onSubmit, error, loading }) {
         <select name="role" value={role} onChange={(event) => setRole(event.target.value)}>
           <option value="client">Client</option>
           <option value="freelancer">Freelancer</option>
-          <option value="admin">Admin</option>
         </select>
       </label>
       <button type="submit" className="hh-btn" disabled={loading}>
