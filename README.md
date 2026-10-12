@@ -4,7 +4,7 @@ HustleHub+ is a secure freelance marketplace. Freelancers advertise services. Cl
 
 Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and transactions; a React client on HTTPS; JWT plus RBAC for client, freelancer, and admin; and the Part 1 security controls kept in place.
 
-**Demonstration video:** [HustleHub+ Part 1 demo](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026).
+**Demonstration video:** [HustleHub+ Part 2 demo](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The Part 1 API demo remains at [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE).
 
 ---
 
@@ -74,7 +74,7 @@ If you have never built software, treat the picture below as a **three-storey bu
 
 This is the **shop window**: the HustleHub+ screen a person would open in Chrome or Edge. “SPA” means single-page application: the page does not fully reload for every click (Meta Platforms, 2024).
 
-**Part 2 status:** this website **is built**. The React SPA lives in `client/` and runs on `https://localhost:5173`. Postman can still send the same messages for API evidence.
+**Part 2 status:** this website **is built**. The React SPA lives in `client/` and runs on `http://localhost:5173`. Postman can still send the same messages for API evidence.
 
 **Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** in `localStorage` (`hh_token`) — think of a signed, time-limited visitor badge — not the password itself (Jones, Bradley and Sakimura, 2015).
 
@@ -95,8 +95,8 @@ Inside reception the diagram shows three purple desks. A message is handled **in
 1. **HTTPS** — the tunnel is opened and the body can be read safely.
 2. **Validation** — is the form complete and legal?
 3. **Auth & JWT** — if this is a private room, is the visitor badge valid?
-4. **Routes & controllers** — do the actual job (register, login, or “who am I?”).
-5. **Queries** — ask the filing cabinet to save or find a user.
+4. **Routes & controllers** — do the actual job (register, login, gigs, bookings, income, or admin).
+5. **Queries** — ask MongoDB to save or find a user, gig, booking, or transaction.
 
 #### Purple desk: Auth & JWT
 
@@ -108,13 +108,15 @@ This desk reads the form **before** any filing happens. Missing name, weak passw
 
 #### Purple desk: Routes & controllers
 
-These are the jobs reception is willing to do. The diagram mentions register, login, gigs, and bookings because that is the **full** marketplace. In Part 1 the jobs that exist are:
+These are the jobs reception is willing to do. In Part 2 the jobs that exist are:
 
-- register a user
+- register a user (`client` or `freelancer` only)
 - log in and receive a token
 - `/me` — “show me who this badge belongs to”
-
-Gigs and bookings are drawn as future work so the diagram still matches the MERN plan in the brief (The Independent Institute of Education, 2026).
+- gigs — list, create, edit, and delete listings
+- bookings — create, list, and confirm
+- income — freelancer totals from confirmed bookings
+- admin — list all gigs
 
 ### Storey 3 — orange box: Data tier
 
@@ -132,10 +134,10 @@ A **boundary** is a fence. If you ignore the fence, you have no security, only h
 | --- | --- | --- |
 | Browser / Postman (client) | Server, and only over HTTPS | The user file or MongoDB |
 | Server (Node + Express) | Client (answers) and storage (queries) | The internet except through HTTPS |
-| Storage (file now, MongoDB later) | Server only | The public internet |
+| Storage (MongoDB) | Server only | The public internet |
 
-**Public rooms** (health, register, login): anyone may knock; they still pass HTTPS and validation.  
-**Private rooms** (`/me`, and later gigs or bookings): every knock must show a valid JWT. That is the line on the diagram between “anyone can ask” and “only people with a badge get in”.
+**Public rooms** (health, register, login, browse gigs): anyone may knock; they still pass HTTPS and validation.  
+**Private rooms** (`/me`, own gigs, bookings, income, admin): every knock must show a valid JWT, and some rooms also check role. That is the line on the diagram between “anyone can ask” and “only people with a badge get in”.
 
 ---
 
@@ -152,7 +154,8 @@ hustlehub-plus/
 ├── certs/                         # local SSL files (not committed)
 ├── postman/
 │   ├── HustleHub-Part1.postman_collection.json
-│   └── screenshots/               # Part 1 Postman images
+│   ├── HustleHub-Part2.postman_collection.json
+│   └── screenshots/               # Part 1 and Part 2 Postman images
 ├── scripts/
 │   ├── generate-certs.js
 │   └── create-admin.js            # bootstrap an admin (not public register)
