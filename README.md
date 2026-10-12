@@ -4,7 +4,7 @@ HustleHub+ is a secure freelance marketplace. Freelancers advertise services. Cl
 
 Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and transactions; a React client on HTTPS; JWT plus RBAC for client, freelancer, and admin; and the Part 1 security controls kept in place.
 
-**Demonstration video:** [HustleHub+ Part 1 demo](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026).
+**Demonstration video:** [HustleHub+ Part 2 demo](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The Part 1 API demo remains at [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE).
 
 ---
 
@@ -74,7 +74,7 @@ If you have never built software, treat the picture below as a **three-storey bu
 
 This is the **shop window**: the HustleHub+ screen a person would open in Chrome or Edge. “SPA” means single-page application: the page does not fully reload for every click (Meta Platforms, 2024).
 
-**Part 2 status:** this website **is built**. The React SPA lives in `client/` and runs on `https://localhost:5173`. Postman can still send the same messages for API evidence.
+**Part 2 status:** this website **is built**. The React SPA lives in `client/` and runs on `http://localhost:5173`. Postman can still send the same messages for API evidence.
 
 **Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** in `localStorage` (`hh_token`) — think of a signed, time-limited visitor badge — not the password itself (Jones, Bradley and Sakimura, 2015).
 
@@ -88,15 +88,15 @@ The browser may show “Not secure” for our **self-signed** local certificate.
 
 ### Storey 2 — blue box: Server tier (Node.js + Express)
 
-This is **reception**. It is the only part of the building the public is allowed to speak to. The diagram marks this as the **system boundary: reachable only over HTTPS**. Nobody on the internet is allowed to open the user file or, later, MongoDB. They must go through this box (OpenJS Foundation, n.d.; OpenJS Foundation, 2024).
+This is **reception**. It is the only part of the building the public is allowed to speak to. The diagram marks this as the **system boundary: reachable only over HTTPS**. Nobody on the internet is allowed to open MongoDB. They must go through this box (OpenJS Foundation, n.d.; OpenJS Foundation, 2024).
 
 Inside reception the diagram shows three purple desks. A message is handled **in order**:
 
 1. **HTTPS** — the tunnel is opened and the body can be read safely.
 2. **Validation** — is the form complete and legal?
 3. **Auth & JWT** — if this is a private room, is the visitor badge valid?
-4. **Routes & controllers** — do the actual job (register, login, or “who am I?”).
-5. **Queries** — ask the filing cabinet to save or find a user.
+4. **Routes & controllers** — do the actual job (register, login, gigs, bookings, income, or admin).
+5. **Queries** — ask MongoDB to save or find a user, gig, booking, or transaction.
 
 #### Purple desk: Auth & JWT
 
@@ -108,13 +108,15 @@ This desk reads the form **before** any filing happens. Missing name, weak passw
 
 #### Purple desk: Routes & controllers
 
-These are the jobs reception is willing to do. The diagram mentions register, login, gigs, and bookings because that is the **full** marketplace. In Part 1 the jobs that exist are:
+These are the jobs reception is willing to do. In Part 2 the jobs that exist are:
 
-- register a user
+- register a user (`client` or `freelancer` only)
 - log in and receive a token
 - `/me` — “show me who this badge belongs to”
-
-Gigs and bookings are drawn as future work so the diagram still matches the MERN plan in the brief (The Independent Institute of Education, 2026).
+- gigs — list, create, edit, and delete listings
+- bookings — create, list, and confirm
+- income — freelancer totals from confirmed bookings
+- admin — list all gigs
 
 ### Storey 3 — orange box: Data tier
 
@@ -130,12 +132,12 @@ A **boundary** is a fence. If you ignore the fence, you have no security, only h
 
 | Actor | May talk to | Must not talk to |
 | --- | --- | --- |
-| Browser / Postman (client) | Server, and only over HTTPS | The user file or MongoDB |
+| Browser / Postman (client) | Server, and only over HTTPS | MongoDB |
 | Server (Node + Express) | Client (answers) and storage (queries) | The internet except through HTTPS |
-| Storage (file now, MongoDB later) | Server only | The public internet |
+| Storage (MongoDB) | Server only | The public internet |
 
-**Public rooms** (health, register, login): anyone may knock; they still pass HTTPS and validation.  
-**Private rooms** (`/me`, and later gigs or bookings): every knock must show a valid JWT. That is the line on the diagram between “anyone can ask” and “only people with a badge get in”.
+**Public rooms** (health, register, login, browse gigs): anyone may knock; they still pass HTTPS and validation.  
+**Private rooms** (`/me`, own gigs, bookings, income, admin): every knock must show a valid JWT, and some rooms also check role. That is the line on the diagram between “anyone can ask” and “only people with a badge get in”.
 
 ---
 
@@ -152,7 +154,8 @@ hustlehub-plus/
 ├── certs/                         # local SSL files (not committed)
 ├── postman/
 │   ├── HustleHub-Part1.postman_collection.json
-│   └── screenshots/               # Part 1 Postman images
+│   ├── HustleHub-Part2.postman_collection.json
+│   └── screenshots/               # Part 1 and Part 2 Postman images
 ├── scripts/
 │   ├── generate-certs.js
 │   └── create-admin.js            # bootstrap an admin (not public register)
@@ -192,7 +195,7 @@ Health check: `GET https://localhost:3000/api/health`
 
 ### React client
 
-The SPA uses Vite with a local HTTPS cert. `VITE_API_URL` defaults to `https://localhost:3000`. Accept the API self-signed certificate in the browser first (open the API health URL once), then start the client:
+The SPA uses Vite. `VITE_API_URL` defaults to `https://localhost:3000`. Accept the API self-signed certificate in the browser first (open the API health URL once), then start the client:
 
 ```bash
 cd client
@@ -200,7 +203,7 @@ npm install
 npm run dev
 ```
 
-Open **`https://localhost:5173`**. If the browser blocks the Vite cert, proceed past the warning for local development.
+Open **`http://localhost:5173`**. The API still uses HTTPS; the client talks to it over that locked tunnel.
 
 ### Create an admin
 
@@ -221,9 +224,20 @@ Base URL: `https://localhost:3000`
 | Method | Path | Access | Success |
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Public | `200` |
-| `POST` | `/api/auth/register` | Public | `201` |
+| `POST` | `/api/auth/register` | Public (`client` or `freelancer`) | `201` |
 | `POST` | `/api/auth/login` | Public | `200` |
 | `GET` | `/api/auth/me` | Bearer JWT | `200` |
+| `GET` | `/api/gigs` | Public | `200` |
+| `GET` | `/api/gigs/:id` | Public | `200` |
+| `GET` | `/api/gigs/mine` | Freelancer JWT | `200` |
+| `POST` | `/api/gigs` | Freelancer JWT | `201` |
+| `PUT` | `/api/gigs/:id` | Freelancer owner JWT | `200` |
+| `DELETE` | `/api/gigs/:id` | Freelancer owner JWT | `200` |
+| `POST` | `/api/bookings` | Client JWT | `201` |
+| `GET` | `/api/bookings/mine` | Client or freelancer JWT | `200` |
+| `POST` | `/api/bookings/:id/confirm` | Client JWT | `200` |
+| `GET` | `/api/transactions/mine` | Freelancer JWT | `200` |
+| `GET` | `/api/admin/gigs` | Admin JWT | `200` |
 
 Roles: `client` \| `freelancer` \| `admin`
 
@@ -276,7 +290,7 @@ Password must be 8–128 characters and include uppercase, lowercase, a number, 
 `GET /api/auth/me`  
 Header: `Authorization: Bearer <token>`
 
-This is the Part 1 route **beyond login**. The JWT is validated on **every** call (The Independent Institute of Education, 2026; Jones, Bradley and Sakimura, 2015).
+This is the protected identity route **beyond login**. The JWT is validated on **every** call (The Independent Institute of Education, 2026; Jones, Bradley and Sakimura, 2015). Part 2 adds the gig, booking, income, and admin routes in the table above. Each of those still checks the token, and most also check role.
 
 | Case | Status |
 | --- | --- |
@@ -292,6 +306,12 @@ This is the Part 1 route **beyond login**. The JWT is validated on **every** cal
 **Login:** HTTPS → `validateLogin` → find user → `comparePassword` → `signToken({ id, role })` → `200` with token.
 
 **Protected `/me`:** HTTPS → `authMiddleware` reads `Bearer` → `verifyToken` → `findById` → `200` without password.
+
+**Create gig:** HTTPS → freelancer JWT → `validateGig` → Mongo insert → `201`.
+
+**Create booking:** HTTPS → client JWT → booking rate limit → `validateBooking` → Mongo insert → `201`.
+
+**Confirm booking:** HTTPS → client JWT → booking must belong to the caller and still be pending → transaction row → `200` or `409` if already confirmed.
 
 Failures return controlled JSON. Stack traces, file paths, and configuration values are not sent (Open Worldwide Application Security Project, 2021).
 
@@ -367,9 +387,11 @@ Coverage output is gitignored (`client/coverage/`).
 
 ## Testing, screenshots, and demonstration
 
-Imraan Nordien (ST10434419) produced the Postman collection (`postman/HustleHub-Part1.postman_collection.json`), the twelve screenshots below, and the demonstration video.
+Imraan Nordien (ST10434419) produced the Postman collections, Newman run, screenshots, and demonstration videos.
 
-**Demonstration video:** [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026). The recording shows the API running over HTTPS, successful registration, and login with token generation, as required by The Independent Institute of Education (2026).
+**Part 2 demonstration video:** [https://youtu.be/eevV5RWQjZc](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The recording shows the React client and the live API: register and login, gigs, bookings, income, and admin, as required by The Independent Institute of Education (2026).
+
+**Part 1 demonstration video:** [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026). The earlier recording shows the API running over HTTPS, successful registration, and login with token generation.
 
 ### 1. Health — API is running (`200`)
 
@@ -443,6 +465,87 @@ The login token identifies the user. The password is still not returned.
 
 ![Me 200](./postman/screenshots/12-me-200.png)
 
+### Part 2 — Postman, Newman, and extra evidence
+
+Imraan Nordien (ST10434419) added the Part 2 collection (`postman/HustleHub-Part2.postman_collection.json`), Newman as a dev dependency, and the screenshots below. The collection logs in as freelancer, client, and admin, then checks gigs, bookings, income, admin listing, 403/409/401 cases, and token failures.
+
+Passwords stay in a local Postman environment (`postman/local-secrets.json`, gitignored). The API uses a self-signed certificate, so Newman needs `--insecure`:
+
+```bash
+npm install
+npm run test:api
+```
+
+Frontend tests stay the Vitest suite in `client/` (`npm run test:client`). Imraan’s run matched that suite; we kept it.
+
+#### Part 2 screenshots
+
+| Evidence | File |
+| --- | --- |
+| Admin gigs | `p2-00-admin-gigs.png` |
+| Health `200` | `p2-01-health-200.png` |
+| List gigs `200` | `p2-03-list-gigs-200.png` |
+| Create gig `201` | `p2-04-create-gig-201.png` |
+| Create booking `201` | `p2-05-create-booking-201.png` |
+| Confirm booking `200` | `p2-06-confirm-booking-200.png` |
+| Income `200` | `p2-07-income-200.png` |
+| Client cannot create gig `403` | `p2-08-forbidden-client-create-gig-403.png` |
+| Freelancer cannot open admin `403` | `p2-09-forbidden-freelancer-admin-403.png` |
+| Freelancer cannot create booking `403` | `p2-10-forbidden-freelancer-booking-403.png` |
+| Confirm booking twice `409` | `p2-11-conflict-confirm-booking-409.png` |
+| Client cannot read income `403` | `p2-12-forbidden-client-income-403.png` |
+| No token `401` | `p2-13-unauthorized-no-token-401.png` |
+| Invalid token `401` | `p2-14-unauthorized-invalid-token-401.png` |
+| List gigs (variable) `200` | `p2-15-list-gigs-variable-200.png` |
+| Get gig by id `200` | `p2-16-get-gig-by-id-200.png` |
+| Client bookings `200` | `p2-17-my-bookings-client-200.png` |
+| Income (variable) `200` | `p2-18-my-income-variable-200.png` |
+| Newman pass | `p2-19-newman-pass.png` |
+| Frontend tests pass | `p2-20-frontend-tests-pass.png` |
+| Client build pass | `p2-21-build-pass.png` |
+
+![Admin gigs](./postman/screenshots/p2-00-admin-gigs.png)
+
+![Part 2 health 200](./postman/screenshots/p2-01-health-200.png)
+
+![List gigs 200](./postman/screenshots/p2-03-list-gigs-200.png)
+
+![Create gig 201](./postman/screenshots/p2-04-create-gig-201.png)
+
+![Create booking 201](./postman/screenshots/p2-05-create-booking-201.png)
+
+![Confirm booking 200](./postman/screenshots/p2-06-confirm-booking-200.png)
+
+![Income 200](./postman/screenshots/p2-07-income-200.png)
+
+![Forbidden client create gig 403](./postman/screenshots/p2-08-forbidden-client-create-gig-403.png)
+
+![Forbidden freelancer admin 403](./postman/screenshots/p2-09-forbidden-freelancer-admin-403.png)
+
+![Forbidden freelancer booking 403](./postman/screenshots/p2-10-forbidden-freelancer-booking-403.png)
+
+![Confirm booking twice 409](./postman/screenshots/p2-11-conflict-confirm-booking-409.png)
+
+![Forbidden client income 403](./postman/screenshots/p2-12-forbidden-client-income-403.png)
+
+![Unauthorized no token 401](./postman/screenshots/p2-13-unauthorized-no-token-401.png)
+
+![Unauthorized invalid token 401](./postman/screenshots/p2-14-unauthorized-invalid-token-401.png)
+
+![List gigs variable 200](./postman/screenshots/p2-15-list-gigs-variable-200.png)
+
+![Get gig by id 200](./postman/screenshots/p2-16-get-gig-by-id-200.png)
+
+![Client bookings 200](./postman/screenshots/p2-17-my-bookings-client-200.png)
+
+![Income variable 200](./postman/screenshots/p2-18-my-income-variable-200.png)
+
+![Newman pass](./postman/screenshots/p2-19-newman-pass.png)
+
+![Frontend tests pass](./postman/screenshots/p2-20-frontend-tests-pass.png)
+
+![Client build pass](./postman/screenshots/p2-21-build-pass.png)
+
 ---
 
 ## Reference list
@@ -458,6 +561,8 @@ Meta Platforms, 2024. *React*. [online] Available at: <https://react.dev/> [Acce
 MongoDB, Inc., 2024. *Introduction to MongoDB*. [online] Available at: <https://www.mongodb.com/docs/manual/introduction/> [Accessed 6 September 2026].
 
 Nordien, I., 2026. *HustleHub+ Part 1 demonstration*. [video online] Available at: <https://youtu.be/DcsFY8W7TBE> [Accessed 6 September 2026].
+
+Nordien, I., 2026. *HustleHub+ Part 2 demonstration*. [video online] Available at: <https://youtu.be/eevV5RWQjZc> [Accessed 12 October 2026].
 
 OpenJS Foundation, 2024. *Node.js documentation*. [online] Available at: <https://nodejs.org/docs/latest/api/> [Accessed 6 September 2026].
 
