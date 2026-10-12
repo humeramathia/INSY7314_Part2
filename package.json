@@ -8,7 +8,8 @@
     "dev": "node --watch src/server.js",
     "certs": "node scripts/generate-certs.js",
     "create-admin": "node scripts/create-admin.js",
-    "test:client": "npm test --prefix client"
+    "test:client": "npm test --prefix client",
+    "test:api": "newman run postman/HustleHub-Part2.postman_collection.json --insecure"
   },
   "keywords": [],
   "author": "",

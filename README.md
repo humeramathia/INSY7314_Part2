@@ -443,6 +443,87 @@ The login token identifies the user. The password is still not returned.
 
 ![Me 200](./postman/screenshots/12-me-200.png)
 
+### Part 2 — Postman, Newman, and extra evidence
+
+Imraan Nordien (ST10434419) added the Part 2 collection (`postman/HustleHub-Part2.postman_collection.json`), Newman as a dev dependency, and the screenshots below. The collection logs in as freelancer, client, and admin, then checks gigs, bookings, income, admin listing, 403/409/401 cases, and token failures.
+
+Passwords stay in a local Postman environment (`postman/local-secrets.json`, gitignored). The API uses a self-signed certificate, so Newman needs `--insecure`:
+
+```bash
+npm install
+npm run test:api
+```
+
+Frontend tests stay the Vitest suite in `client/` (`npm run test:client`). Imraan’s run matched that suite; we kept it.
+
+#### Part 2 screenshots
+
+| Evidence | File |
+| --- | --- |
+| Admin gigs | `p2-00-admin-gigs.png` |
+| Health `200` | `p2-01-health-200.png` |
+| List gigs `200` | `p2-03-list-gigs-200.png` |
+| Create gig `201` | `p2-04-create-gig-201.png` |
+| Create booking `201` | `p2-05-create-booking-201.png` |
+| Confirm booking `200` | `p2-06-confirm-booking-200.png` |
+| Income `200` | `p2-07-income-200.png` |
+| Client cannot create gig `403` | `p2-08-forbidden-client-create-gig-403.png` |
+| Freelancer cannot open admin `403` | `p2-09-forbidden-freelancer-admin-403.png` |
+| Freelancer cannot create booking `403` | `p2-10-forbidden-freelancer-booking-403.png` |
+| Confirm booking twice `409` | `p2-11-conflict-confirm-booking-409.png` |
+| Client cannot read income `403` | `p2-12-forbidden-client-income-403.png` |
+| No token `401` | `p2-13-unauthorized-no-token-401.png` |
+| Invalid token `401` | `p2-14-unauthorized-invalid-token-401.png` |
+| List gigs (variable) `200` | `p2-15-list-gigs-variable-200.png` |
+| Get gig by id `200` | `p2-16-get-gig-by-id-200.png` |
+| Client bookings `200` | `p2-17-my-bookings-client-200.png` |
+| Income (variable) `200` | `p2-18-my-income-variable-200.png` |
+| Newman pass | `p2-19-newman-pass.png` |
+| Frontend tests pass | `p2-20-frontend-tests-pass.png` |
+| Client build pass | `p2-21-build-pass.png` |
+
+![Admin gigs](./postman/screenshots/p2-00-admin-gigs.png)
+
+![Part 2 health 200](./postman/screenshots/p2-01-health-200.png)
+
+![List gigs 200](./postman/screenshots/p2-03-list-gigs-200.png)
+
+![Create gig 201](./postman/screenshots/p2-04-create-gig-201.png)
+
+![Create booking 201](./postman/screenshots/p2-05-create-booking-201.png)
+
+![Confirm booking 200](./postman/screenshots/p2-06-confirm-booking-200.png)
+
+![Income 200](./postman/screenshots/p2-07-income-200.png)
+
+![Forbidden client create gig 403](./postman/screenshots/p2-08-forbidden-client-create-gig-403.png)
+
+![Forbidden freelancer admin 403](./postman/screenshots/p2-09-forbidden-freelancer-admin-403.png)
+
+![Forbidden freelancer booking 403](./postman/screenshots/p2-10-forbidden-freelancer-booking-403.png)
+
+![Confirm booking twice 409](./postman/screenshots/p2-11-conflict-confirm-booking-409.png)
+
+![Forbidden client income 403](./postman/screenshots/p2-12-forbidden-client-income-403.png)
+
+![Unauthorized no token 401](./postman/screenshots/p2-13-unauthorized-no-token-401.png)
+
+![Unauthorized invalid token 401](./postman/screenshots/p2-14-unauthorized-invalid-token-401.png)
+
+![List gigs variable 200](./postman/screenshots/p2-15-list-gigs-variable-200.png)
+
+![Get gig by id 200](./postman/screenshots/p2-16-get-gig-by-id-200.png)
+
+![Client bookings 200](./postman/screenshots/p2-17-my-bookings-client-200.png)
+
+![Income variable 200](./postman/screenshots/p2-18-my-income-variable-200.png)
+
+![Newman pass](./postman/screenshots/p2-19-newman-pass.png)
+
+![Frontend tests pass](./postman/screenshots/p2-20-frontend-tests-pass.png)
+
+![Client build pass](./postman/screenshots/p2-21-build-pass.png)
+
 ---
 
 ## Reference list
