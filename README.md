@@ -195,7 +195,7 @@ Health check: `GET https://localhost:3000/api/health`
 
 ### React client
 
-The SPA uses Vite with a local HTTPS cert. `VITE_API_URL` defaults to `https://localhost:3000`. Accept the API self-signed certificate in the browser first (open the API health URL once), then start the client:
+The SPA uses Vite. `VITE_API_URL` defaults to `https://localhost:3000`. Accept the API self-signed certificate in the browser first (open the API health URL once), then start the client:
 
 ```bash
 cd client
@@ -203,7 +203,7 @@ npm install
 npm run dev
 ```
 
-Open **`https://localhost:5173`**. If the browser blocks the Vite cert, proceed past the warning for local development.
+Open **`http://localhost:5173`**. The API still uses HTTPS; the client talks to it over that locked tunnel.
 
 ### Create an admin
 
@@ -224,9 +224,20 @@ Base URL: `https://localhost:3000`
 | Method | Path | Access | Success |
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Public | `200` |
-| `POST` | `/api/auth/register` | Public | `201` |
+| `POST` | `/api/auth/register` | Public (`client` or `freelancer`) | `201` |
 | `POST` | `/api/auth/login` | Public | `200` |
 | `GET` | `/api/auth/me` | Bearer JWT | `200` |
+| `GET` | `/api/gigs` | Public | `200` |
+| `GET` | `/api/gigs/:id` | Public | `200` |
+| `GET` | `/api/gigs/mine` | Freelancer JWT | `200` |
+| `POST` | `/api/gigs` | Freelancer JWT | `201` |
+| `PUT` | `/api/gigs/:id` | Freelancer owner JWT | `200` |
+| `DELETE` | `/api/gigs/:id` | Freelancer owner JWT | `200` |
+| `POST` | `/api/bookings` | Client JWT | `201` |
+| `GET` | `/api/bookings/mine` | Client or freelancer JWT | `200` |
+| `POST` | `/api/bookings/:id/confirm` | Client JWT | `200` |
+| `GET` | `/api/transactions/mine` | Freelancer JWT | `200` |
+| `GET` | `/api/admin/gigs` | Admin JWT | `200` |
 
 Roles: `client` \| `freelancer` \| `admin`
 
@@ -279,7 +290,7 @@ Password must be 8–128 characters and include uppercase, lowercase, a number, 
 `GET /api/auth/me`  
 Header: `Authorization: Bearer <token>`
 
-This is the Part 1 route **beyond login**. The JWT is validated on **every** call (The Independent Institute of Education, 2026; Jones, Bradley and Sakimura, 2015).
+This is the protected identity route **beyond login**. The JWT is validated on **every** call (The Independent Institute of Education, 2026; Jones, Bradley and Sakimura, 2015). Part 2 adds the gig, booking, income, and admin routes in the table above. Each of those still checks the token, and most also check role.
 
 | Case | Status |
 | --- | --- |
@@ -295,6 +306,12 @@ This is the Part 1 route **beyond login**. The JWT is validated on **every** cal
 **Login:** HTTPS → `validateLogin` → find user → `comparePassword` → `signToken({ id, role })` → `200` with token.
 
 **Protected `/me`:** HTTPS → `authMiddleware` reads `Bearer` → `verifyToken` → `findById` → `200` without password.
+
+**Create gig:** HTTPS → freelancer JWT → `validateGig` → Mongo insert → `201`.
+
+**Create booking:** HTTPS → client JWT → booking rate limit → `validateBooking` → Mongo insert → `201`.
+
+**Confirm booking:** HTTPS → client JWT → booking must belong to the caller and still be pending → transaction row → `200` or `409` if already confirmed.
 
 Failures return controlled JSON. Stack traces, file paths, and configuration values are not sent (Open Worldwide Application Security Project, 2021).
 
@@ -370,9 +387,11 @@ Coverage output is gitignored (`client/coverage/`).
 
 ## Testing, screenshots, and demonstration
 
-Imraan Nordien (ST10434419) produced the Postman collection (`postman/HustleHub-Part1.postman_collection.json`), the twelve screenshots below, and the demonstration video.
+Imraan Nordien (ST10434419) produced the Postman collections, Newman run, screenshots, and demonstration videos.
 
-**Demonstration video:** [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026). The recording shows the API running over HTTPS, successful registration, and login with token generation, as required by The Independent Institute of Education (2026).
+**Part 2 demonstration video:** [https://youtu.be/eevV5RWQjZc](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The recording shows the React client and the live API: register and login, gigs, bookings, income, and admin, as required by The Independent Institute of Education (2026).
+
+**Part 1 demonstration video:** [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026). The earlier recording shows the API running over HTTPS, successful registration, and login with token generation.
 
 ### 1. Health — API is running (`200`)
 
@@ -542,6 +561,8 @@ Meta Platforms, 2024. *React*. [online] Available at: <https://react.dev/> [Acce
 MongoDB, Inc., 2024. *Introduction to MongoDB*. [online] Available at: <https://www.mongodb.com/docs/manual/introduction/> [Accessed 6 September 2026].
 
 Nordien, I., 2026. *HustleHub+ Part 1 demonstration*. [video online] Available at: <https://youtu.be/DcsFY8W7TBE> [Accessed 6 September 2026].
+
+Nordien, I., 2026. *HustleHub+ Part 2 demonstration*. [video online] Available at: <https://youtu.be/eevV5RWQjZc> [Accessed 12 October 2026].
 
 OpenJS Foundation, 2024. *Node.js documentation*. [online] Available at: <https://nodejs.org/docs/latest/api/> [Accessed 6 September 2026].
 
