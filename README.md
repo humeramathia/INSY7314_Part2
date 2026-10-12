@@ -88,7 +88,7 @@ The browser may show “Not secure” for our **self-signed** local certificate.
 
 ### Storey 2 — blue box: Server tier (Node.js + Express)
 
-This is **reception**. It is the only part of the building the public is allowed to speak to. The diagram marks this as the **system boundary: reachable only over HTTPS**. Nobody on the internet is allowed to open the user file or, later, MongoDB. They must go through this box (OpenJS Foundation, n.d.; OpenJS Foundation, 2024).
+This is **reception**. It is the only part of the building the public is allowed to speak to. The diagram marks this as the **system boundary: reachable only over HTTPS**. Nobody on the internet is allowed to open MongoDB. They must go through this box (OpenJS Foundation, n.d.; OpenJS Foundation, 2024).
 
 Inside reception the diagram shows three purple desks. A message is handled **in order**:
 
@@ -132,7 +132,7 @@ A **boundary** is a fence. If you ignore the fence, you have no security, only h
 
 | Actor | May talk to | Must not talk to |
 | --- | --- | --- |
-| Browser / Postman (client) | Server, and only over HTTPS | The user file or MongoDB |
+| Browser / Postman (client) | Server, and only over HTTPS | MongoDB |
 | Server (Node + Express) | Client (answers) and storage (queries) | The internet except through HTTPS |
 | Storage (MongoDB) | Server only | The public internet |
 
