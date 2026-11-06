@@ -107,7 +107,7 @@ Inside reception the diagram shows three purple desks. A message is handled **in
 
 #### Purple desk: Auth & JWT
 
-On **register**, the password is **hashed** (turned into a one-way scramble) before it is stored (Provos and Mazières, 1999). On **login**, the scramble is compared and the server **issues a token** that carries only `id` and `role` (Jones, Bradley and Sakimura, 2015). On later calls such as `/me`, the same desk checks that badge. If the badge is missing, fake, or expired, the door stays closed.
+On **register**, the password is **hashed** (turned into a one-way scramble) before it is stored (Provos and Mazières, 1999). On **login**, the scramble is compared and the server **issues a token** that carries `id`, `role`, and a unique `jti` (Jones, Bradley and Sakimura, 2015). On later calls such as `/me`, the same desk checks that badge. If the badge is missing, fake, expired, or logged out, the door stays closed.
 
 #### Purple desk: Validation
 
@@ -425,7 +425,7 @@ The brief asks not only **what** was used, but **why** (The Independent Institut
 
 ### Token-based authentication (JWT)
 
-**What:** Login returns a JWT signed with `JWT_SECRET` from `.env`. The payload is only `id` and `role`. Protected routes send `Authorization: Bearer <token>`. `authMiddleware` verifies the token on **every** protected request (Jones, Bradley and Sakimura, 2015).
+**What:** Login returns a JWT signed with `JWT_SECRET` from `.env`. The payload is `id`, `role`, and `jti`. Protected routes send `Authorization: Bearer <token>`. `authMiddleware` verifies the token on **every** protected request (Jones, Bradley and Sakimura, 2015).
 
 **Why:** The API stays **stateless**: the server does not keep a session table. Signing means a client cannot change `id` or `role` without breaking the signature. A small payload limits what is exposed if a token is stolen. The secret is not in GitHub. Checking every time stops `/me` from being called with a missing, expired, or forged token.
 
@@ -461,6 +461,67 @@ The brief asks not only **what** was used, but **why** (The Independent Institut
 
 ---
 
+## Own security features
+
+These two controls are **not** in the POE minimum list (hashing, JWT, validation, sanitisation, rate limiting, Helmet/CSP, HTTPS). They are extra, functional, and required for Part 3 (The Independent Institute of Education, 2026).
+
+### 1. Per-account lockout after failed logins
+
+**Where:** `src/models/userModel.js`, `src/controllers/authController.js`
+
+**What:** Each user document stores `failedLoginAttempts` and `lockUntil`. A wrong password increments the counter. After **five** failures the account is locked for **15 minutes** and login returns **HTTP 423**. A correct password clears the counter. Unknown emails still return the same `401` message so lockout does not become a user-enumeration oracle.
+
+**Why this is not the same as rate limiting:** `express-rate-limit` is keyed by **IP**. A botnet can spread guesses across addresses; a single attacker can also lock out a whole classroom NAT. Account lockout follows the **identity**, which is what NIST treats as a defence against online guessing (Grassi, Garcia and Fenton, 2017).
+
+### 2. JWT denylist on logout
+
+**Where:** `src/models/tokenDenylist.js`, `src/utils/jwt.js`, `src/middleware/authMiddleware.js`, `POST /api/auth/logout`
+
+**What:** Every access token carries a unique `jti`. Logout writes that id to MongoDB with a TTL equal to the token’s remaining life. `authMiddleware` rejects denylisted tokens with `401`. The React client calls logout before it clears `sessionStorage`.
+
+**Why this is not the same as JWT expiry:** A signed JWT is valid until `exp` unless the server keeps a revocation list (Jones, Bradley and Sakimura, 2015). Without a denylist, a stolen token works until it ages out even after the user clicks Log out. The TTL index drops spent rows so the collection does not grow forever.
+
+---
+
+## Security review
+
+This review maps HustleHub+ controls to the threats the POE asks us to explain (The Independent Institute of Education, 2026; Open Worldwide Application Security Project, 2021).
+
+| Threat | How it shows up here | Control in this codebase |
+| --- | --- | --- |
+| **Injection** (OWASP A03) | Attacker sends `$gt`, extra JSON keys, or huge bodies hoping MongoDB or Express will execute them | `express-validator` with allow-lists; `sanitiseBody`; Mongoose schemas (not string-concatenated queries); JSON body cap **10kb**; unexpected fields rejected on register/login/gigs/bookings |
+| **Cross-site scripting** (OWASP A03) | A gig title or name containing `<script>` is later rendered in another browser | React escapes text by default (Meta Platforms, 2024); Helmet CSP on the API (`default-src 'none'`); React CSP meta + Vite `Content-Security-Policy` header; sanitisation of request bodies |
+| **Authentication weaknesses** (OWASP A07) | Stolen dump, guessed password, replayed token, brute force | bcrypt 12 rounds; strong password rule; JWT HS256 with `id` + `role` + `jti`; secret only in `.env`; HTTPS always; login limiter 5/15 min; **account lockout**; **logout denylist**; `sessionStorage` so the token dies with the tab |
+| **Access control / IDOR** (OWASP A01) | Client creates gigs, freelancer confirms someone else’s booking, client reads another freelancer’s income | RBAC middleware (`client` / `freelancer` / `admin`); public register cannot choose `admin`; gig update/delete checks owner id; booking confirm checks `clientId`; income queries by `req.user.id` only; Newman cases for cross-user 403 |
+| **Broken session / token theft** | Token copied from logs or cache | Tokens never logged; `Cache-Control: no-store`; HTTPS; short `JWT_EXPIRES_IN` (default 1h); logout denylist |
+| **Security misconfiguration** (OWASP A05) | HTTP, open CORS, missing headers, secrets in Git | HTTPS-only server; CORS allow-list (Vite 5173 and Docker 8080); Helmet; `.env` gitignored; Docker API runs as `node`, not root |
+| **Denial of service at the door** | Flooded register, login, or booking | Separate register limiter; login limiter with `skipSuccessfulRequests`; booking limiter 10/15 min |
+
+OWASP ZAP baseline and API scans against `https://localhost:3000` reported **0 High / 0 Medium / 0 Low**. Remaining Informational notes are documented under [OWASP ZAP results](#owasp-zap-results).
+
+Residual risk: this is a classroom stack with a **self-signed** certificate and simulated payments. A production deploy would still need a public CA, secrets in the host’s secret store (not a developer laptop `.env`), and cloud log shipping.
+
+---
+
+## Logging
+
+The API writes **one JSON object per line** on stdout (`src/utils/logger.js`). Passwords, JWTs, and `MONGODB_URI` are never included.
+
+| Event | When |
+| --- | --- |
+| `login.success` | Correct password; includes `userId` and `role` |
+| `login.failed` | Unknown email or bad password; lockout flag if the fifth failure just fired |
+| `login.locked` | Request while `lockUntil` is still in the future |
+| `logout.success` | Token `jti` stored on the denylist |
+| `booking.created` | Client booking inserted |
+| `booking.confirmed` | Client confirmed a pending booking |
+| `transaction.created` | Simulated payment row written |
+| `app.error` | Unexpected 500; message only, no stack to the client |
+
+`docker compose logs api` shows the same stream. That format is what a later Grafana/Loki (or similar) sink would scrape; this submission keeps the collector local so Classroom50 does not need extra cloud credentials.
+
+---
+
 ## Frontend tests
 
 The React client uses **Vitest** and React Testing Library (`jsdom`). Tests cover login, register, gig list/detail/create/edit, bookings, income, admin, layout, protected routes, and shared components.
@@ -468,6 +529,7 @@ The React client uses **Vitest** and React Testing Library (`jsdom`). Tests cove
 From the repo root:
 
 ```bash
+npm run test:tax
 npm run test:client
 ```
 
@@ -661,9 +723,27 @@ This evidence is kept for the Part 3 security review (The Independent Institute 
 
 ---
 
+## Pipeline configuration
+
+Classroom50 runs `.github/workflows/autograde.yaml` on pushes to `main`. Locally, the commands used to evaluate the stack are:
+
+| Check | Command |
+| --- | --- |
+| SARS tax unit tests | `npm run test:tax` |
+| Frontend unit tests (Vitest) | `npm run test:client` |
+| API integration (Newman) | `npm run test:api` (needs `postman/local-secrets.json`) |
+| Client production build | `npm run build --prefix client` |
+| Container stack | `docker compose up --build` |
+
+Passwords, tokens, and Mongo URIs stay in `.env` or gitignored Newman secrets. They are not hardcoded in the workflow file.
+
+---
+
 ## Reference list
 
 Cursor, 2026. *Cursor*. [generative AI coding assistant]. Available at: <https://www.cursor.com/> [Accessed 9 October 2026].
+
+Docker, Inc., 2024. *Docker Compose overview*. [online] Available at: <https://docs.docker.com/compose/> [Accessed 6 November 2026].
 
 Grassi, P.A., Garcia, M.E. and Fenton, J.L., 2017. *Digital identity guidelines: authentication and lifecycle management*. NIST Special Publication 800-63B. [online] Gaithersburg: National Institute of Standards and Technology. Available at: <https://doi.org/10.6028/NIST.SP.800-63B> [Accessed 6 September 2026].
 
@@ -687,6 +767,8 @@ Provos, N. and Mazières, D., 1999. A future-adaptable password scheme. *Proceed
 
 Rescorla, E., 2018. *The transport layer security (TLS) protocol version 1.3*. RFC 8446. [online] Internet Engineering Task Force. Available at: <https://www.rfc-editor.org/rfc/rfc8446> [Accessed 6 September 2026].
 
+South African Revenue Service, 2025. *Rates of tax for individuals*. [online] Available at: <https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/> [Accessed 6 November 2026].
+
 The Independent Institute of Education, 2025. *Guidelines for responsible AI use at The IIE*. [pdf] [s.l.]: The Independent Institute of Education.
 
 The Independent Institute of Education, 2026. *Information systems 3D / Application development security: POE (paper and marking rubric)*. [pdf] [s.l.]: The Independent Institute of Education.
@@ -703,6 +785,6 @@ This annexure follows The IIE’s labelling and disclosure rules for generative 
 
 **Purpose / intention behind use:** The group used Cursor to **understand merge conflicts** and to **sort conflicts and branches**. Several people were committing to the same repository. We did not want to delete someone else’s code by mistake while accepting or rejecting conflict markers. Cursor was used as a second pair of eyes to explain what each side of a conflict meant so we could keep the correct Humera, Mo, and Lilitha work. We reviewed every suggested resolution before it was committed. Cursor did not replace group decisions, and we remain responsible for the quality and integrity of this submission (The Independent Institute of Education, 2025).
 
-**Date(s) on which generative AI was used:** September–October 2026, during branch merges onto `Humera` and `main`.
+**Date(s) on which generative AI was used:** September–November 2026, during branch merges onto `Humera` and `main`, and while assembling Part 3 documentation.
 
 **Chat record:** Cursor chats are stored in the local Cursor session used by the group leader. There is no public shareable chat URL. Direct AI wording was not copied into this README or into production code as an unreviewed block.
