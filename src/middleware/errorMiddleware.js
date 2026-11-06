@@ -6,6 +6,10 @@ function errorMiddleware(err, req, res, next) {
     return fail(res, 400, "Invalid JSON request body.");
   }
 
+  if (err.type === "entity.too.large" || err.status === 413) {
+    return fail(res, 413, "Request body too large.");
+  }
+
   // Log unexpected errors on the server only.
   console.error("Unhandled application error:", err);
 

@@ -1,44 +1,50 @@
 const { rateLimit } = require("express-rate-limit");
 
+function jsonHandler(message) {
+  return (req, res) => {
+    return res.status(429).json({
+      success: false,
+      message,
+    });
+  };
+}
+
 /**
- * Limits repeated authentication attempts.
- * Applied to registration and login routes.
+ * Failed logins only. Successful logins do not consume the budget, so a
+ * normal user is not locked out after five good sessions.
  */
-const authLimiter = rateLimit({
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: jsonHandler("Too many authentication attempts. Please try again later."),
+});
+
+/**
+ * Separate from login so a brute-force login test cannot starve registration,
+ * and so account-creation spam has its own ceiling.
+ */
+const registerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-
-  handler: (req, res) => {
-    return res.status(429).json({
-      success: false,
-      message: "Too many authentication attempts. Please try again later.",
-    });
-  },
+  handler: jsonHandler("Too many registration attempts. Please try again later."),
 });
 
-/**
- * Limits repeated booking actions.
- *
- * Humera will mount this on booking creation and confirmation routes
- * once those routes are available.
- */
 const bookingLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-
-  handler: (req, res) => {
-    return res.status(429).json({
-      success: false,
-      message: "Too many booking requests. Please try again later.",
-    });
-  },
+  handler: jsonHandler("Too many booking requests. Please try again later."),
 });
 
 module.exports = {
-  authLimiter,
+  loginLimiter,
+  registerLimiter,
   bookingLimiter,
+  authLimiter: loginLimiter,
 };
