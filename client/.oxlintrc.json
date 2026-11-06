@@ -1,8 +1,23 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "oxc"],
+  "categories": { "correctness": "error" },
+  "env": { "browser": true, "es2022": true },
   "rules": {
+    "no-undef": "error",
+    "no-unused-vars": "warn",
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-debugger": "error",
+    "eqeqeq": "error",
     "react/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    "react/set-state-in-effect": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    { "files": ["vite.config.js"], "env": { "node": true, "browser": false } }
+  ],
+  "ignorePatterns": ["node_modules/**", "dist/**", "coverage/**"]
 }

@@ -20,6 +20,31 @@ Part 1 is the **secure backend foundation**: a Node.js and Express API for regis
 8. [Security decisions](#security-decisions)
 9. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
 10. [Reference list](#reference-list)
+11. [Static code analysis and pipeline evidence](#static-code-analysis-and-pipeline-evidence)
+
+---
+
+## Static code analysis and pipeline evidence
+
+Mo's static-analysis contribution uses **Oxlint 1.85.0** for the backend (`src/` and `scripts/`) and frontend (`client/src/` and `client/vite.config.js`). Both applications use locked dependencies and configuration appropriate to Node.js or React. Checks include correctness rules, undefined names, unused variables, dynamic code execution (`eval` and `Function`), debugger statements, strict equality, and React hook rules. Both errors and warnings fail the check.
+
+Use Node.js 24 and run these commands from the repository root:
+
+```powershell
+npm ci
+npm ci --prefix client
+npm run lint
+npm run lint:report
+npm run analysis:verify-gate
+```
+
+`lint:report` analyses both applications even if one fails, writes raw JSON results and a summary to `reports/static-analysis/`, and returns a non-zero exit status if either scope fails. `analysis:verify-gate` temporarily introduces an error and a warning in each scope, verifies all four runs fail, and removes its probe files. These are checks of the analysis gate, not backend or frontend application tests.
+
+The **Static code analysis** GitHub Actions workflow runs on pushes and pull requests and can also run manually or be called by another workflow. It installs both dependency sets, runs analysis and gate verification, adds a job summary, and uploads reports as an artifact even if analysis fails. It uses read-only repository permissions and pinned action revisions. Imraan can reuse this workflow in the full CI/CD pipeline; application tests and builds remain separate required stages.
+
+The initial frontend scan found two warnings in `GigForm.jsx`: incomplete effect dependencies and a synchronous state update inside an effect. The form now resets through a stable key based on incoming field values. The recorded final local scan passed **34 backend/script files and 23 frontend/configuration files with zero errors and zero warnings**. All four deliberate failure checks passed, and the frontend production build passed. This is local evidence against base commit `b4f0713` plus this contribution, not evidence of a completed GitHub Actions run.
+
+Passing analysis means the checked source satisfied the selected rules. It does not prove the absence of injection, XSS, authentication flaws, access-control flaws, or dependency vulnerabilities. The final security review and functional tests must assess those threats separately. See [analysis setup, results, limitations, and evidence instructions](docs/static-analysis.md).
 
 ---
 

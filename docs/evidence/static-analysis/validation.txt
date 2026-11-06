@@ -1,0 +1,70 @@
+$ npm run lint
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> hustlehub-plus@1.0.0 lint
+> npm run lint:backend && npm run lint:frontend
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> hustlehub-plus@1.0.0 lint:backend
+> oxlint --deny-warnings src scripts
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> hustlehub-plus@1.0.0 lint:frontend
+> npm --prefix client run lint
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> client@0.0.0 lint
+> oxlint --deny-warnings src vite.config.js
+
+
+Exit code: 0
+
+$ npm run lint:report
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> hustlehub-plus@1.0.0 lint:report
+> node scripts/static-analysis.js
+
+backend: PASS (34 files; 0 errors; 0 warnings)
+frontend: PASS (23 files; 0 errors; 0 warnings)
+
+Exit code: 0
+
+$ npm run analysis:verify-gate
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> hustlehub-plus@1.0.0 analysis:verify-gate
+> node scripts/verify-analysis-gate.js
+
+PASS: backend error produces exit code 1
+PASS: backend warning produces exit code 1
+PASS: frontend error produces exit code 1
+PASS: frontend warning produces exit code 1
+
+Exit code: 0
+
+$ npm --prefix client run build
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> client@0.0.0 build
+> vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 44 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.78 kB │ gzip:  0.42 kB
+dist/assets/index-Hem9SUn9.css    7.33 kB │ gzip:  2.11 kB
+dist/assets/index-HaFNtXIY.js   278.74 kB │ gzip: 86.82 kB
+
+✓ built in 169ms
+
+Exit code: 0
+
+$ git diff --check
+
+Exit code: 0

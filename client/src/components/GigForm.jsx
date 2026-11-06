@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import ErrorBanner from "./ErrorBanner";
 
 const EMPTY = {
@@ -8,18 +8,20 @@ const EMPTY = {
   price: "",
 };
 
-export default function GigForm({ initialValues, onSubmit, error, loading, submitLabel = "Save gig" }) {
-  const [values, setValues] = useState({ ...EMPTY, ...initialValues });
-
-  useEffect(() => {
-    if (!initialValues) return;
-    setValues({ ...EMPTY, ...initialValues });
-  }, [
-    initialValues?.title,
-    initialValues?.description,
-    initialValues?.category,
-    initialValues?.price,
+export default function GigForm(props) {
+  // Reset the draft only when incoming field values change, not on every
+  // parent render or when a save error/loading state changes.
+  const resetKey = JSON.stringify([
+    props.initialValues?.title,
+    props.initialValues?.description,
+    props.initialValues?.category,
+    props.initialValues?.price,
   ]);
+  return <GigFormFields key={resetKey} {...props} />;
+}
+
+function GigFormFields({ initialValues, onSubmit, error, loading, submitLabel = "Save gig" }) {
+  const [values, setValues] = useState({ ...EMPTY, ...initialValues });
 
   function update(field, value) {
     setValues((current) => ({ ...current, [field]: value }));

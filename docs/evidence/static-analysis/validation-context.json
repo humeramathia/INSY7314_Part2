@@ -1,0 +1,14 @@
+{
+  "environment": "local working tree",
+  "baseRevision": "b4f0713b899835adfa317ee6e8fe08bb670136ec",
+  "formRegressionChecks": [
+    "initial values displayed",
+    "draft can be edited",
+    "equivalent incoming values and error/loading changes preserve draft",
+    "changed incoming values reset draft",
+    "submitted price converted to a number"
+  ],
+  "formChecksPassed": true,
+  "applicationTestSuitesRun": false,
+  "githubActionsRun": null
+}
