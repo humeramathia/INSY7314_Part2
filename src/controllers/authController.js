@@ -11,6 +11,7 @@ const {
   clearFailedLogins,
 } = require("../models/userModel");
 const { denyToken } = require("../models/tokenDenylist");
+const logger = require("../utils/logger");
 
 function toPublicUser(user) {
   return {
@@ -57,17 +58,24 @@ async function login(req, res, next) {
     const user = await findByEmail(email);
 
     if (!user) {
+      logger.warn("login.failed", { reason: "unknown_email" });
       return fail(res, 401, "Invalid email or password");
     }
 
     if (isLocked(user)) {
+      logger.warn("login.locked", { userId: user._id.toString() });
       return fail(res, 423, "Account temporarily locked. Try again later.");
     }
 
     const isMatch = await comparePassword(password, user.password);
 
     if (!isMatch) {
-      await recordFailedLogin(user);
+      const lockedNow = await recordFailedLogin(user);
+      logger.warn("login.failed", {
+        userId: user._id.toString(),
+        reason: "bad_password",
+        locked: Boolean(lockedNow),
+      });
       return fail(res, 401, "Invalid email or password");
     }
 
@@ -77,6 +85,8 @@ async function login(req, res, next) {
       id: user._id.toString(),
       role: user.role,
     });
+
+    logger.info("login.success", { userId: user._id.toString(), role: user.role });
 
     return success(res, 200, "Login successful", {
       token,
@@ -110,6 +120,7 @@ async function logout(req, res, next) {
         : new Date(Date.now() + 60 * 60 * 1000);
       await denyToken(decoded.jti, expiresAt);
     }
+    logger.info("logout.success", { userId: req.user?.id, role: req.user?.role });
     return success(res, 200, "Logged out successfully");
   } catch (err) {
     return next(err);
