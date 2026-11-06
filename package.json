@@ -9,7 +9,7 @@
     "certs": "node scripts/generate-certs.js",
     "create-admin": "node scripts/create-admin.js",
     "test:client": "npm test --prefix client",
-    "test:api": "newman run postman/HustleHub-Part2.postman_collection.json --insecure"
+    "test:api": "newman run postman/HustleHub-Part2.postman_collection.json --insecure --environment postman/local-secrets.json"
   },
   "keywords": [],
   "author": "",
