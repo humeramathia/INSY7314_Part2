@@ -19,8 +19,9 @@ Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and tran
 7. [Request flow](#request-flow)
 8. [Security decisions](#security-decisions)
 9. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
-10. [Reference list](#reference-list)
-11. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
+10. [OWASP ZAP results](#owasp-zap-results)
+11. [Reference list](#reference-list)
+12. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
 
 ---
 
@@ -76,7 +77,7 @@ This is the **shop window**: the HustleHub+ screen a person would open in Chrome
 
 **Part 2 status:** this website **is built**. The React SPA lives in `client/` and runs on `http://localhost:5173`. Postman can still send the same messages for API evidence.
 
-**Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** in `localStorage` (`hh_token`) — think of a signed, time-limited visitor badge — not the password itself (Jones, Bradley and Sakimura, 2015).
+**Boundary:** the browser (or Postman) may only talk to the server over **HTTPS**. It must never keep a raw password. After login it may keep a **JWT** in `sessionStorage` (`hh_token`) — think of a signed, time-limited visitor badge that dies when the tab closes — not the password itself (Jones, Bradley and Sakimura, 2015).
 
 ### The arrow between green and blue — HTTPS (TLS)
 
@@ -155,6 +156,7 @@ hustlehub-plus/
 ├── postman/
 │   ├── HustleHub-Part1.postman_collection.json
 │   ├── HustleHub-Part2.postman_collection.json
+│   ├── local-secrets.example.json
 │   └── screenshots/               # Part 1 and Part 2 Postman images
 ├── scripts/
 │   ├── generate-certs.js
@@ -325,7 +327,7 @@ The brief asks not only **what** was used, but **why** (The Independent Institut
 
 **What:** Passwords are hashed with **bcryptjs, 12 salt rounds** before save. Login uses `bcrypt.compare`. Plaintext is never stored or returned (Provos and Mazières, 1999).
 
-**Why:** If `users.json` leaks, a slow salted hash is expensive to reverse. Rainbow tables fail because each password gets its own salt. A fast hash (MD5, SHA-1) or plaintext would turn one stolen file into a full takeover (Provos and Mazières, 1999; Open Worldwide Application Security Project, 2021). Twelve rounds is slow enough for attackers and still acceptable for register and login. Hashing happens **before** the model writes the file.
+**Why:** If the MongoDB users collection leaks, a slow salted hash is expensive to reverse. Rainbow tables fail because each password gets its own salt. A fast hash (MD5, SHA-1) or plaintext would turn one stolen dump into a full takeover (Provos and Mazières, 1999; Open Worldwide Application Security Project, 2021). Twelve rounds is slow enough for attackers and still acceptable for register and login. Hashing happens **before** the model writes to MongoDB.
 
 ### Token-based authentication (JWT)
 
@@ -351,11 +353,11 @@ The brief asks not only **what** was used, but **why** (The Independent Institut
 
 **Why:** Raw errors can leak stack traces, paths, or configuration and help an attacker map the server (Open Worldwide Application Security Project, 2021).
 
-### Rate limiting, Helmet, and sanitisation
+### Rate limiting, Helmet, body size, and sanitisation
 
-**What:** Auth routes are limited to 5 requests per 15 minutes. Booking routes are limited to 10 per 15 minutes. Helmet sets CSP. Request bodies are sanitised before controllers run.
+**What:** Login is limited to **5 failed attempts per 15 minutes** (`skipSuccessfulRequests: true`), so a normal session does not burn the budget. Registration has **its own** 5-per-15-minute limiter. Booking routes are limited to 10 per 15 minutes. Helmet sets CSP on the API. The React client also sends a CSP (meta tag plus Vite `server.headers`). JSON bodies are capped at **10kb**. Request bodies are sanitised before controllers run.
 
-**Why:** Brute-force login and booking spam are slowed at the door. CSP reduces XSS impact in the browser. Sanitisation strips unexpected or dangerous input so Mongo queries and HTML views do not receive raw attacker strings (Open Worldwide Application Security Project, 2021).
+**Why:** Brute-force login and booking spam are slowed at the door. Successful logins are not punished. CSP reduces XSS impact in the browser. A small JSON limit stops oversized payloads. Sanitisation strips unexpected or dangerous input so Mongo queries and HTML views do not receive raw attacker strings (Open Worldwide Application Security Project, 2021).
 
 ### Public register cannot create admin
 
@@ -467,9 +469,9 @@ The login token identifies the user. The password is still not returned.
 
 ### Part 2 — Postman, Newman, and extra evidence
 
-Imraan Nordien (ST10434419) added the Part 2 collection (`postman/HustleHub-Part2.postman_collection.json`), Newman as a dev dependency, and the screenshots below. The collection logs in as freelancer, client, and admin, then checks gigs, bookings, income, admin listing, 403/409/401 cases, and token failures.
+Imraan Nordien (ST10434419) added the Part 2 collection (`postman/HustleHub-Part2.postman_collection.json`), Newman as a dev dependency, and the screenshots below. **Every request has tests**: status code plus JSON `success` and `message`. Negatives assert `403` / `401` / `409` / `429` with `success === false` and an error message. Extra cases cover freelancer B updating or deleting freelancer A’s gig, client B not seeing client A’s bookings, and six failed logins that end in `429`.
 
-Passwords stay in a local Postman environment (`postman/local-secrets.json`, gitignored). The API uses a self-signed certificate, so Newman needs `--insecure`:
+Copy `postman/local-secrets.example.json` to `postman/local-secrets.json` (gitignored) and fill in passwords for freelancer A/B, client A/B, and admin. The API uses a self-signed certificate, so Newman needs `--insecure`:
 
 ```bash
 npm install
@@ -545,6 +547,23 @@ Frontend tests stay the Vitest suite in `client/` (`npm run test:client`). Imraa
 ![Frontend tests pass](./postman/screenshots/p2-20-frontend-tests-pass.png)
 
 ![Client build pass](./postman/screenshots/p2-21-build-pass.png)
+
+---
+
+## OWASP ZAP results
+
+OWASP ZAP was run against the live HTTPS API (`https://localhost:3000`, reached from Docker as `host.docker.internal`). Reports live in `zap-reports/`.
+
+| Scan | Report | High | Medium | Low | Informational |
+| --- | --- | --- | --- | --- | --- |
+| Baseline | [`zap-baseline.md`](./zap-reports/zap-baseline.md) | 0 | 0 | 0 | 1 (cacheable 404s for `/`, `/robots.txt`, `/sitemap.xml`) |
+| API scan | [`zap-api.md`](./zap-reports/zap-api.md) | 0 | 0 | 0 | 5 (4xx on protected routes, auth identified, cache directives) |
+
+HTML copies: [`zap-baseline.html`](./zap-reports/zap-baseline.html), [`zap-api.html`](./zap-reports/zap-api.html). JSON: [`zap-baseline.json`](./zap-reports/zap-baseline.json), [`zap-api.json`](./zap-reports/zap-api.json).
+
+A follow-up control script (`zap-reports/control-checks.json`) confirmed HTTPS, HSTS, `X-Content-Type-Options`, CSP, CORS lock, 401/403 RBAC, and `Cache-Control: no-store` on JSON. The remaining Informational cache hits were on empty 404 pages, not on tokens or user records. JSON responses send `Cache-Control: no-store`.
+
+This evidence is kept for the Part 3 security review (The Independent Institute of Education, 2026; Open Worldwide Application Security Project, 2021).
 
 ---
 
