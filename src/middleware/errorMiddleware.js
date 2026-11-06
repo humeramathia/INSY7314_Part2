@@ -1,4 +1,5 @@
 const { fail } = require("../utils/response");
+const logger = require("../utils/logger");
 
 function errorMiddleware(err, req, res, next) {
   // Invalid JSON sent by the client.
@@ -10,8 +11,10 @@ function errorMiddleware(err, req, res, next) {
     return fail(res, 413, "Request body too large.");
   }
 
-  // Log unexpected errors on the server only.
-  console.error("Unhandled application error:", err);
+  logger.error("app.error", {
+    message: err.message || "Unhandled application error",
+    name: err.name,
+  });
 
   // Never expose internal error details or stack traces to the client.
   return fail(res, 500, "Something went wrong");
