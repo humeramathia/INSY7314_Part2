@@ -56,7 +56,12 @@ function maskEmail(email) {
 
 function cleanString(value) {
   // Remove CR, LF, and other control characters (log injection / forging).
-  return value.replace(/[\u0000-\u001f\u007f]+/g, " ").slice(0, 1000);
+  let cleaned = "";
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    cleaned += code < 32 || code === 127 ? " " : char;
+  }
+  return cleaned.slice(0, 1000);
 }
 
 function scrub(value, depth = 0) {

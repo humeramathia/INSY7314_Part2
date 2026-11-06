@@ -19,7 +19,6 @@ export default function GigDetailPage() {
 
   useEffect(() => {
     let live = true;
-    setLoading(true);
     getGig(id)
       .then((data) => {
         if (live) setGig(data);

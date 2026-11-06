@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-11-06T15:12:04.808Z",
+  "sourceRevision": null,
+  "baseRevision": "b4f0713b899835adfa317ee6e8fe08bb670136ec",
+  "environment": "local working tree",
+  "node": "v24.22.1",
+  "passed": false,
+  "results": [
+    {
+      "scope": "backend",
+      "tool": "Oxlint",
+      "toolVersion": "1.85.0",
+      "paths": [
+        "src",
+        "scripts"
+      ],
+      "files": 33,
+      "errors": 0,
+      "warnings": 0,
+      "exitCode": 0,
+      "passed": true,
+      "failureReason": null
+    },
+    {
+      "scope": "frontend",
+      "tool": "Oxlint",
+      "toolVersion": "1.85.0",
+      "paths": [
+        "src",
+        "vite.config.js"
+      ],
+      "files": 23,
+      "errors": 2,
+      "warnings": 0,
+      "exitCode": 1,
+      "passed": false,
+      "failureReason": null
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+/* eslint-disable react/only-export-components -- hook lives next to the provider */
 import { createContext, useContext, useEffect, useState } from "react";
 import { getToken, login as apiLogin, logout as apiLogout, me, register as apiRegister, setToken } from "./api";
 
@@ -5,13 +6,12 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => !getToken());
 
   useEffect(() => {
     let live = true;
 
     if (!getToken()) {
-      setReady(true);
       return undefined;
     }
 

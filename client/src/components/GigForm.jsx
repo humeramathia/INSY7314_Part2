@@ -8,7 +8,19 @@ const EMPTY = {
   price: "",
 };
 
-export default function GigForm({ initialValues, onSubmit, error, loading, submitLabel = "Save gig" }) {
+export default function GigForm(props) {
+  // Reset the draft only when incoming field values change, not on every
+  // parent render or when a save error/loading state changes.
+  const resetKey = JSON.stringify([
+    props.initialValues?.title,
+    props.initialValues?.description,
+    props.initialValues?.category,
+    props.initialValues?.price,
+  ]);
+  return <GigFormFields key={resetKey} {...props} />;
+}
+
+function GigFormFields({ initialValues, onSubmit, error, loading, submitLabel = "Save gig" }) {
   const [values, setValues] = useState({ ...EMPTY, ...initialValues });
 
   function update(field, value) {

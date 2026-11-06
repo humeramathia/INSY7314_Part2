@@ -20,7 +20,12 @@
     "test:ci": "newman run postman/HustleHub-CI.postman_collection.json --insecure --env-var baseUrl=https://localhost:3000",
     "test:api": "newman run postman/HustleHub-Part2.postman_collection.json --insecure --environment postman/local-secrets.json",
     "docker:up": "docker compose up --build -d",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "oxlint --deny-warnings src scripts",
+    "lint:frontend": "npm --prefix client run lint",
+    "lint:report": "node scripts/static-analysis.js",
+    "analysis:verify-gate": "node scripts/verify-analysis-gate.js"
   },
   "keywords": [],
   "author": "",
@@ -41,6 +46,7 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "newman": "^6.2.3",
+    "oxlint": "1.85.0",
     "supertest": "^7.3.1"
   },
   "jest": {

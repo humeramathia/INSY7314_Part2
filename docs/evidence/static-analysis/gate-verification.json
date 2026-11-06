@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-11-06T15:17:27.071Z",
+  "sourceRevision": null,
+  "checks": [
+    {
+      "scope": "backend",
+      "severity": "error",
+      "rule": "no-debugger",
+      "exitCode": 1,
+      "passed": true
+    },
+    {
+      "scope": "backend",
+      "severity": "warning",
+      "rule": "no-unused-vars",
+      "exitCode": 1,
+      "passed": true
+    },
+    {
+      "scope": "frontend",
+      "severity": "error",
+      "rule": "no-debugger",
+      "exitCode": 1,
+      "passed": true
+    },
+    {
+      "scope": "frontend",
+      "severity": "warning",
+      "rule": "no-unused-vars",
+      "exitCode": 1,
+      "passed": true
+    }
+  ]
+}

@@ -17,7 +17,7 @@ describe("JWT", () => {
 
   it("rejects a tampered token", () => {
     const token = signToken({ id: "user1", role: "client" });
-    const [header, payload, signature] = token.split(".");
+    const [header, , signature] = token.split(".");
     const tweaked = Buffer.from(JSON.stringify({ id: "user1", role: "admin" })).toString("base64url");
     const fake = `${header}.${tweaked}.${signature}`;
     assert.throws(() => verifyToken(fake));

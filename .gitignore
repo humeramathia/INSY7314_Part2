@@ -11,3 +11,4 @@ coverage/
 client/coverage/
 postman/local-secrets.json
 logs/
+reports/
