@@ -1,8 +1,8 @@
-# HustleHub+ — Part 2
+# HustleHub+ — Final submission (Parts 1–3)
 
-HustleHub+ is a secure freelance marketplace. Freelancers advertise services. Clients browse and book those services. Bookings later create simulated payment records so freelancers can see income and estimated tax. Because the platform will hold passwords, identity, and money-related data, security is designed in from the first version, not added afterwards (The Independent Institute of Education, 2026; Open Worldwide Application Security Project, 2021).
+HustleHub+ is a secure freelance marketplace. Freelancers advertise services. Clients browse and book those services. Confirmed bookings create simulated payment records so freelancers can see income and a **SARS-based tax estimate**. Because the platform holds passwords, identity, and money-related data, security is designed in from the first version, not added afterwards (The Independent Institute of Education, 2026; Open Worldwide Application Security Project, 2021).
 
-Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and transactions; a React client on HTTPS; JWT plus RBAC for client, freelancer, and admin; and the Part 1 security controls kept in place.
+This repository is the **complete application**: Part 1 authentication, Part 2 gigs/bookings/transactions on MongoDB with a React client, and Part 3 tax estimation, Docker Compose, extra security controls, logging, and this documentation.
 
 **Demonstration video:** [HustleHub+ Part 2 demo](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The Part 1 API demo remains at [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE).
 
@@ -15,13 +15,19 @@ Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and tran
 3. [Architecture diagram explained for a non-technical reader](#architecture-diagram-explained-for-a-non-technical-reader)
 4. [Backend structure](#backend-structure)
 5. [How to run](#how-to-run)
-6. [API endpoints](#api-endpoints)
-7. [Request flow](#request-flow)
-8. [Security decisions](#security-decisions)
-9. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
-10. [OWASP ZAP results](#owasp-zap-results)
-11. [Reference list](#reference-list)
-12. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
+6. [Run with Docker Compose](#run-with-docker-compose)
+7. [API endpoints](#api-endpoints)
+8. [Request flow](#request-flow)
+9. [Tax estimation](#tax-estimation)
+10. [Security decisions](#security-decisions)
+11. [Own security features](#own-security-features)
+12. [Security review](#security-review)
+13. [Logging](#logging)
+14. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
+15. [Pipeline configuration](#pipeline-configuration)
+16. [OWASP ZAP results](#owasp-zap-results)
+17. [Reference list](#reference-list)
+18. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
 
 ---
 
@@ -150,8 +156,12 @@ hustlehub-plus/
 ├── README.md
 ├── .env.example
 ├── .gitignore
+├── Dockerfile                     # HTTPS API image
+├── docker-compose.yml             # mongo + api + web
 ├── package.json
-├── client/                        # React Vite SPA (port 5173)
+├── client/                        # React Vite SPA (port 5173 / Docker 8080)
+│   ├── Dockerfile
+│   └── nginx.conf
 ├── certs/                         # local SSL files (not committed)
 ├── postman/
 │   ├── HustleHub-Part1.postman_collection.json
@@ -167,9 +177,9 @@ hustlehub-plus/
     ├── config/                    # MongoDB connection
     ├── routes/
     ├── controllers/
-    ├── models/                    # user, gig, booking, transaction
+    ├── models/                    # user, gig, booking, transaction, token denylist
     ├── middleware/
-    └── utils/
+    └── utils/                     # hashing, JWT, SARS tax estimate, logger
 ```
 
 Routes only map addresses. Middleware enforces security before a controller runs. Utils hold hashing and JWT. Models own storage. That split is itself a boundary: validation cannot be skipped by hiding logic in one large file (The Independent Institute of Education, 2026).
@@ -219,6 +229,38 @@ The script hashes the password with bcrypt (12 rounds) and writes a user with ro
 
 ---
 
+## Run with Docker Compose
+
+The backend API and the frontend are **separate images**. Docker Compose starts MongoDB, the HTTPS API, and an nginx-hosted React build together (Docker, Inc., 2024).
+
+1. Copy `.env.example` to `.env` and set a long random `JWT_SECRET`. Do not commit `.env`.
+2. From the repo root:
+
+```bash
+docker compose up --build
+```
+
+| Service | Image | Host port | Role |
+| --- | --- | --- | --- |
+| `mongo` | `mongo:7` | not published | Database `hustlehub` |
+| `api` | built from `./Dockerfile` | `3000` | HTTPS Express API (non-root user) |
+| `web` | built from `./client/Dockerfile` | `8080` | Static React client |
+
+Open **`http://localhost:8080`** for the website. The browser still talks to **`https://localhost:3000`**. Accept the self-signed certificate once (visit the health URL) the same way as local development.
+
+The API image generates its own TLS files at **build** time. Compose overrides `MONGODB_URI` to `mongodb://mongo:27017/hustlehub` so the API talks to the Mongo container, not `127.0.0.1`. `JWT_SECRET` still comes from `.env`. `CORS_ORIGINS` includes `http://localhost:8080`.
+
+Stop the stack with `docker compose down`. Data in the `hustlehub_mongo` volume survives unless you add `-v`.
+
+Proof that the stack is up:
+
+```bash
+docker compose ps
+curl -k https://localhost:3000/api/health
+```
+
+---
+
 ## API endpoints
 
 Base URL: `https://localhost:3000`
@@ -228,6 +270,7 @@ Base URL: `https://localhost:3000`
 | `GET` | `/api/health` | Public | `200` |
 | `POST` | `/api/auth/register` | Public (`client` or `freelancer`) | `201` |
 | `POST` | `/api/auth/login` | Public | `200` |
+| `POST` | `/api/auth/logout` | Bearer JWT | `200` |
 | `GET` | `/api/auth/me` | Bearer JWT | `200` |
 | `GET` | `/api/gigs` | Public | `200` |
 | `GET` | `/api/gigs/:id` | Public | `200` |
@@ -284,8 +327,16 @@ Password must be 8–128 characters and include uppercase, lowercase, a number, 
 | --- | --- |
 | Missing fields | `400` |
 | Unknown email or wrong password | `401` (same message for both) |
+| Account locked after five failed logins | `423` |
 
-`data` includes `token` and `user`.
+`data` includes `token` and `user`. Five failed passwords on the same account lock it for 15 minutes (see [Own security features](#own-security-features)).
+
+### Logout (token denylist)
+
+`POST /api/auth/logout`  
+Header: `Authorization: Bearer <token>`
+
+The current token’s `jti` is stored until it would have expired. Later requests with that token return `401`.
 
 ### Current user (protected)
 
@@ -305,9 +356,11 @@ This is the protected identity route **beyond login**. The JWT is validated on *
 
 **Register:** HTTPS → `validateRegister` → duplicate-email check → `hashPassword` → `createUser` → `201` without password.
 
-**Login:** HTTPS → `validateLogin` → find user → `comparePassword` → `signToken({ id, role })` → `200` with token.
+**Login:** HTTPS → `validateLogin` → find user → lockout check → `comparePassword` → `signToken({ id, role, jti })` → `200` with token.
 
-**Protected `/me`:** HTTPS → `authMiddleware` reads `Bearer` → `verifyToken` → `findById` → `200` without password.
+**Logout:** HTTPS → JWT → store `jti` on the denylist → `200`.
+
+**Protected `/me`:** HTTPS → `authMiddleware` reads `Bearer` → `verifyToken` → denylist check → `findById` → `200` without password.
 
 **Create gig:** HTTPS → freelancer JWT → `validateGig` → Mongo insert → `201`.
 
@@ -316,6 +369,47 @@ This is the protected identity route **beyond login**. The JWT is validated on *
 **Confirm booking:** HTTPS → client JWT → booking must belong to the caller and still be pending → transaction row → `200` or `409` if already confirmed.
 
 Failures return controlled JSON. Stack traces, file paths, and configuration values are not sent (Open Worldwide Application Security Project, 2021).
+
+---
+
+## Tax estimation
+
+South Africa taxes **individuals** on a progressive scale. SARS publishes the brackets and the **primary rebate** for each year of assessment (South African Revenue Service, 2025). HustleHub+ uses the **2025/26** table (1 March 2025 – 28 February 2026), the latest published individual rates used for this POE.
+
+The estimate lives in `src/utils/taxEstimate.js` and is returned on `GET /api/transactions/mine`. Only **confirmed** freelance income on this platform is treated as taxable income. That is a simplification: a real return would include other income, deductions, age rebates, medical tax credits, and possibly turnover tax or VAT (South African Revenue Service, 2025). The UI labels the figure as an estimate, not advice.
+
+### Method
+
+1. Sum confirmed transaction amounts for the logged-in freelancer (`totalIncome`).
+2. Find the SARS bracket that contains that amount.
+3. Tax before rebate = bracket base + (income − bracket floor) × marginal rate.
+4. Subtract the **primary rebate** of **R17 235** (person under 65). Tax cannot go below R0.
+5. Net income = gross − estimated tax. Effective rate = tax ÷ gross × 100.
+
+| Taxable income (R) | Formula used (2025/26) |
+| --- | --- |
+| 0 – 237 100 | 18% of taxable income |
+| 237 101 – 370 500 | R42 678 + 26% of the amount above R237 100 |
+| 370 501 – 512 800 | R77 362 + 31% of the amount above R370 500 |
+| 512 801 – 673 000 | R121 475 + 36% of the amount above R512 800 |
+| 673 001 – 857 900 | R179 147 + 39% of the amount above R673 000 |
+| 857 901 – 1 817 000 | R251 258 + 41% of the amount above R857 900 |
+| 1 817 001 and above | R644 489 + 45% of the amount above R1 817 000 |
+
+Worked example: R100 000 of confirmed gigs sits in the first bracket. Tax before rebate = R18 000. After the R17 235 rebate the estimate is **R765**. R300 000 uses the second bracket: R42 678 + 26% × (R300 000 − R237 100) = R59 032, then minus R17 235 = **R41 797**.
+
+Income data is **not** a public endpoint. Only the freelancer’s JWT can read their transactions. Amounts travel over HTTPS and JSON responses send `Cache-Control: no-store`.
+
+### Frontend dashboard
+
+The React **Income** page (`client/src/pages/IncomePage.jsx`) shows:
+
+- three summary cards: total income, estimated tax, amount after tax
+- a donut for income vs tax (effective and marginal rates)
+- a bar chart of income by UTC month
+- the calculation method and disclaimer from the API
+
+Run `npm run test:tax` for the bracket tests. Frontend coverage is in `npm run test:client`.
 
 ---
 
