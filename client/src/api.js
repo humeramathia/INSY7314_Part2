@@ -3,14 +3,14 @@ const TOKEN_KEY = "hh_token";
 export const API_URL = import.meta.env.VITE_API_URL || "https://localhost:3000";
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
 export function setToken(token) {
   if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(TOKEN_KEY, token);
   } else {
-    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
   }
 }
 
