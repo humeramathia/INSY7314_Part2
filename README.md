@@ -237,8 +237,10 @@ The backend API and the frontend are **separate images**. Docker Compose starts 
 2. From the repo root:
 
 ```bash
-docker compose up --build
+npm run docker:up
 ```
+
+That is the same as `docker compose up --build -d`. Stop with `npm run docker:down`.
 
 | Service | Image | Host port | Role |
 | --- | --- | --- | --- |
@@ -730,7 +732,9 @@ Classroom50 runs `.github/workflows/autograde.yaml` on pushes to `main`. Locally
 | Check | Command |
 | --- | --- |
 | SARS tax unit tests | `npm run test:tax` |
+| Logger unit tests | `npm run test:logger` |
 | Frontend unit tests (Vitest) | `npm run test:client` |
+| Combined local tests | `npm test` |
 | API integration (Newman) | `npm run test:api` (needs `postman/local-secrets.json`) |
 | Client production build | `npm run build --prefix client` |
 | Container stack | `docker compose up --build` |
