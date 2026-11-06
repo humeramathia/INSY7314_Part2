@@ -436,3 +436,15 @@ Provos, N. and Mazières, D., 1999. A future-adaptable password scheme. *Proceed
 Rescorla, E., 2018. *The transport layer security (TLS) protocol version 1.3*. RFC 8446. [online] Internet Engineering Task Force. Available at: <https://www.rfc-editor.org/rfc/rfc8446> [Accessed 6 September 2026].
 
 The Independent Institute of Education, 2026. *Information systems 3D / Application development security: POE (paper and marking rubric)*. [pdf] [s.l.]: The Independent Institute of Education.
+
+## Verified GitHub Actions evidence
+
+The static-analysis workflow ran automatically on a push to branch `Mo` at commit `f51646b` and passed.
+
+- Backend and frontend analysis: passed.
+- Verification that errors and warnings fail the analysis: all four checks passed.
+- Evidence upload: passed.
+- [Successful workflow run](https://github.com/humeramathia/INSY7314_Part2/actions/runs/42244083976)
+- Evidence artifact: `static-analysis-42244083976-1`.
+
+The results show that the analysed code passed the configured rules; they do not guarantee the absence of bugs or security vulnerabilities.
