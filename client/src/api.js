@@ -67,6 +67,10 @@ export function me() {
   return request("/api/auth/me", { auth: true });
 }
 
+export function logout() {
+  return request("/api/auth/logout", { method: "POST", auth: true });
+}
+
 export function listGigs() {
   return request("/api/gigs");
 }

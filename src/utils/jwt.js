@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET, JWT_EXPIRES_IN } = require("../config");
 
@@ -6,6 +7,7 @@ function signToken(payload) {
     {
       id: payload.id,
       role: payload.role,
+      jti: payload.jti || crypto.randomUUID(),
     },
     JWT_SECRET,
     { algorithm: "HS256", expiresIn: JWT_EXPIRES_IN }
