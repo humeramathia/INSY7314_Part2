@@ -1,5 +1,9 @@
 # HustleHub+ — Final submission (Parts 1–3)
 
+[![Build and tests](https://github.com/humeramathia/INSY7314_Part2/actions/workflows/ci.yml/badge.svg?branch=merge)](https://github.com/humeramathia/INSY7314_Part2/actions/workflows/ci.yml)
+[![Static code analysis](https://github.com/humeramathia/INSY7314_Part2/actions/workflows/static-analysis.yml/badge.svg?branch=merge)](https://github.com/humeramathia/INSY7314_Part2/actions/workflows/static-analysis.yml)
+[![Deployment package](https://github.com/humeramathia/INSY7314_Part2/actions/workflows/release.yml/badge.svg)](https://github.com/humeramathia/INSY7314_Part2/releases/latest)
+
 HustleHub+ is a secure freelance marketplace. Freelancers advertise services. Clients browse and book those services. Confirmed bookings create simulated payment records so freelancers can see income and a **SARS-based tax estimate**. Because the platform holds passwords, identity, and money-related data, security is designed in from the first version, not added afterwards (The Independent Institute of Education, 2026; Open Worldwide Application Security Project, 2021).
 
 This repository is the **complete application**: Part 1 authentication, Part 2 gigs/bookings/transactions on MongoDB with a React client, and Part 3 tax estimation, Docker Compose, extra security controls, logging, and this documentation.
@@ -25,10 +29,11 @@ This repository is the **complete application**: Part 1 authentication, Part 2 g
 13. [Logging and monitoring](#logging-and-monitoring)
 14. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
 15. [CI/CD pipeline](#cicd-pipeline)
-16. [Static code analysis and pipeline evidence](#static-code-analysis-and-pipeline-evidence)
-17. [OWASP ZAP results](#owasp-zap-results)
-18. [Reference list](#reference-list)
-19. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
+16. [Releases and deployment package](#releases-and-deployment-package)
+17. [Static code analysis and pipeline evidence](#static-code-analysis-and-pipeline-evidence)
+18. [OWASP ZAP results](#owasp-zap-results)
+19. [Reference list](#reference-list)
+20. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
 
 ---
 
@@ -960,7 +965,7 @@ This evidence is kept for the Part 3 security review (The Independent Institute 
 
 ## CI/CD pipeline
 
-GitHub Actions runs **automatically** on every `push` and `pull_request` (`.github/workflows/ci.yml`). There is no `continue-on-error`. If unit tests, integration tests, container health, Playwright, or either build fails, the workflow is red and the check does not pass (GitHub, 2026).
+GitHub Actions runs **automatically** on every `push` and `pull_request` (`.github/workflows/ci.yml`, workflow name **Build and tests**). There is no `continue-on-error`. If unit tests, integration tests, container health, Playwright, or either build fails, the workflow is red and the check does not pass (GitHub, 2026). The README badges at the top are live status from these workflows: green **passing** means the latest run on `merge` succeeded.
 
 Classroom50’s `autograde.yaml` is left unchanged. This workflow is the project pipeline.
 
@@ -970,6 +975,8 @@ Classroom50’s `autograde.yaml` is left unchanged. This workflow is the project
 | **Frontend** | `npm ci` in `client/` | Vitest `npm test` | `npm run build` (Vite production bundle) |
 | **Analysis** | `npm ci` (root and client) | Oxlint `lint:report` (errors and warnings fail the job) | — |
 | **Docker Compose and Playwright** | `npm ci` | `docker compose up --build --wait`; Newman against the **container** API; Loki ingestion check; Playwright Chromium against `http://localhost:8080` (register, gig, tax, logout) and Grafana at `http://localhost:3001` | Compose builds the API and web images |
+| **All tests passed** | — | Empty job that `needs` the four jobs above. It is skipped if any required job failed, so a green badge cannot mean a partial pass. | — |
+| **Deployment package** | — | `git archive` zip of the app, uploaded as a workflow artifact. This job never runs unless **All tests passed** succeeded. | `dist/hustlehub-plus-deployment.zip` |
 
 Playwright (`e2e/`) is the browser stage the lecture asks for: it drives the real React client talking to the real HTTPS API, including a failed login, freelancer registration, publishing a gig, the SARS tax estimate screen, and logout. It ignores the self-signed certificate the same way Newman uses `--insecure`. Evidence screenshots are uploaded as the `playwright-docker-evidence-*` artifact.
 
@@ -984,6 +991,7 @@ Local commands:
 | Container stack (includes Grafana) | `npm run docker:up` |
 | Playwright (stack must be up) | `npx playwright install chromium` then `npm run test:e2e` |
 | Loki ingestion | `npm run test:loki` |
+| Deployment zip | `npm run release:package` |
 
 The backend job creates a **one-run** `JWT_SECRET` with `openssl rand` so no password, token, or connection string is stored in the repository. The Docker job writes a throwaway `.env` on the runner with the same pattern. `MONGODB_URI` in the backend job points at the workflow’s MongoDB service; in the Docker job Compose overrides it to the `mongo` container. Self-signed certs are generated in the runner or at image build; Newman uses `--insecure` only for that local stamp.
 
@@ -992,6 +1000,22 @@ Inspect runs on the repository **Actions** tab. A green check means every requir
 **Figure:** GitHub Actions run [`42363156585`](https://github.com/humeramathia/INSY7314_Part2/actions/runs/42363156585) on branch `merge` — Backend, Frontend, Static code analysis, and **Docker Compose and Playwright** all succeeded.
 
 ![GitHub Actions CI all jobs green](./docs/evidence/ci/github-actions-ci-green.png)
+
+---
+
+## Releases and deployment package
+
+A GitHub **Release** is published only after **Build and tests** is green for that commit (`.github/workflows/release.yml`). The workflow waits for backend, frontend, Oxlint, Docker Compose, Newman, and Playwright. If any of those failed, it refuses to publish.
+
+The release asset is `hustlehub-plus-deployment.zip`: a `git archive` of the repository (no `.env`, no private keys, no `.github` CI files, no ZAP reports). Unpack it, copy `.env.example` to `.env`, set `JWT_SECRET`, then `docker compose up --build -d --wait`. Operator steps are in [docs/DEPLOY.md](docs/DEPLOY.md).
+
+| How to get it | When |
+| --- | --- |
+| [Latest GitHub Release](https://github.com/humeramathia/INSY7314_Part2/releases/latest) | After a `v*` tag (or a manual **Deployment package** run) and a green **Build and tests** run |
+| Actions artifact `hustlehub-plus-deployment-*` | Every successful **Build and tests** run, including pull requests |
+| Local zip | `npm run release:package` writes `dist/hustlehub-plus-deployment.zip` |
+
+Secrets are never packed. The API image still generates its own TLS files at Docker build time.
 
 ---
 

@@ -1,4 +1,4 @@
-name: CI
+name: Build and tests
 
 on:
   push:
@@ -213,3 +213,30 @@ jobs:
       - name: Stop the stack
         if: always()
         run: docker compose down -v
+
+  all-green:
+    name: All tests passed
+    needs: [backend, frontend, analysis, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm every required job succeeded
+        run: echo "Backend, frontend, static analysis, Docker Compose, Newman, and Playwright all passed."
+
+  deployment-package:
+    name: Deployment package
+    needs: [all-green]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build deployment zip
+        run: node scripts/package-release.js
+
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hustlehub-plus-deployment-${{ github.run_id }}
+          path: dist/hustlehub-plus-deployment.zip
+          if-no-files-found: error
+          retention-days: 30

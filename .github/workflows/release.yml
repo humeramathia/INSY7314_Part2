@@ -1,0 +1,76 @@
+name: Deployment package
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wait-for-ci:
+    name: Wait for tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait until Build and tests is green for this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Waiting for Build and tests on ${GITHUB_SHA}"
+          for i in $(seq 1 60); do
+            runs=$(gh run list --repo "${{ github.repository }}" --workflow=ci.yml --commit "${GITHUB_SHA}" --json status,conclusion --limit 10)
+            echo "$runs"
+            success=$(echo "$runs" | jq '[.[] | select(.conclusion == "success")] | length')
+            failed=$(echo "$runs" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | length')
+            pending=$(echo "$runs" | jq '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "pending" or .status == "waiting")] | length')
+            if [ "$success" -gt 0 ]; then
+              echo "Build and tests passed. Publishing the deployment package."
+              exit 0
+            fi
+            if [ "$failed" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              echo "Build and tests did not pass. Refusing to publish a release."
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for Build and tests"
+          exit 1
+
+  publish:
+    name: Publish GitHub Release
+    needs: [wait-for-ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build deployment zip
+        run: node scripts/package-release.js
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          NOTES="HustleHub+ deployment package. Published only after Build and tests passed (backend, frontend, Oxlint, Docker Compose, Newman, and Playwright). Unzip, copy .env.example to .env, set JWT_SECRET, then docker compose up --build -d --wait. See docs/DEPLOY.md."
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            TAG="v1.0.0-${GITHUB_SHA::7}"
+            gh release create "$TAG" dist/hustlehub-plus-deployment.zip \
+              --title "HustleHub+ ${TAG}" \
+              --notes "$NOTES" \
+              --prerelease \
+              --target "$GITHUB_SHA"
+          else
+            gh release create "$TAG" dist/hustlehub-plus-deployment.zip \
+              --title "HustleHub+ ${TAG}" \
+              --notes "$NOTES"
+          fi
