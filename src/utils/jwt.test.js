@@ -11,6 +11,8 @@ describe("JWT", () => {
     const decoded = verifyToken(token);
     assert.equal(decoded.id, "user1");
     assert.equal(decoded.role, "freelancer");
+    assert.equal(typeof decoded.jti, "string");
+    assert.notEqual(decoded.jti, "");
   });
 
   it("rejects a tampered token", () => {

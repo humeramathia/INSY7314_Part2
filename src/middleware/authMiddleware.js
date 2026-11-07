@@ -1,11 +1,12 @@
 const { fail } = require("../utils/response");
 const { verifyToken } = require("../utils/jwt");
+const { isDenied } = require("../models/tokenDenylist");
 
 /**
  * Requires a valid JWT before allowing access to a protected route.
  * On success, the decoded token is stored in req.user.
  */
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const header = req.headers.authorization;
 
   if (!header || !header.startsWith("Bearer ")) {
@@ -25,9 +26,15 @@ function requireAuth(req, res, next) {
       return fail(res, 401, "Invalid or expired token.");
     }
 
+    if (decoded.jti && (await isDenied(decoded.jti))) {
+      return fail(res, 401, "Invalid or expired token.");
+    }
+
     req.user = {
       id: decoded.id,
       role: decoded.role,
+      jti: decoded.jti,
+      exp: decoded.exp,
     };
 
     return next();

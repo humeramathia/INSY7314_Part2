@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+.git
+.github
+zap-reports
+coverage
+client/coverage
+postman/local-secrets.json
+.env
+certs/*.pem
+*.log

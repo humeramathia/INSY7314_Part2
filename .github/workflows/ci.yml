@@ -48,6 +48,12 @@ jobs:
       - name: Run backend unit tests
         run: npm run test:backend
 
+      - name: Run tax estimation tests
+        run: npm run test:tax
+
+      - name: Run logger tests
+        run: npm run test:logger
+
       - name: Build backend
         run: npm run build
 
@@ -60,7 +66,7 @@ jobs:
           for i in $(seq 1 30); do
             if curl -kfsS https://localhost:3000/api/health >/dev/null; then
               echo "API is healthy"
-              npm run test:api
+              npm run test:ci
               exit $?
             fi
             sleep 2

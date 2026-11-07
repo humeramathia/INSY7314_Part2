@@ -26,6 +26,16 @@ const userSchema = new mongoose.Schema(
       required: true,
       enum: ["client", "freelancer", "admin"],
     },
+
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -65,10 +75,34 @@ async function createUser({ name, email, password, role }) {
   });
 }
 
+function isLocked(user) {
+  return Boolean(user?.lockUntil && user.lockUntil.getTime() > Date.now());
+}
+
+async function recordFailedLogin(user, { limit = 5, lockMs = 15 * 60 * 1000 } = {}) {
+  const attempts = Number(user.failedLoginAttempts || 0) + 1;
+  const update = { failedLoginAttempts: attempts };
+  if (attempts >= limit) {
+    update.lockUntil = new Date(Date.now() + lockMs);
+  }
+  await User.updateOne({ _id: user._id }, { $set: update });
+  return attempts >= limit;
+}
+
+async function clearFailedLogins(user) {
+  await User.updateOne(
+    { _id: user._id },
+    { $set: { failedLoginAttempts: 0, lockUntil: null } }
+  );
+}
+
 module.exports = {
   User,
   findByEmail,
   findById,
   emailExists,
   createUser,
+  isLocked,
+  recordFailedLogin,
+  clearFailedLogins,
 };

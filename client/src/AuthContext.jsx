@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { getToken, login as apiLogin, me, register as apiRegister, setToken } from "./api";
+import { getToken, login as apiLogin, logout as apiLogout, me, register as apiRegister, setToken } from "./api";
 
 const AuthContext = createContext(null);
 
@@ -45,7 +45,12 @@ export function AuthProvider({ children }) {
     return login({ email: payload.email, password: payload.password });
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await apiLogout();
+    } catch {
+      // Still clear the local session if the API is unreachable.
+    }
     setToken(null);
     setUser(null);
   }

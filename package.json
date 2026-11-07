@@ -9,10 +9,16 @@
     "certs": "node scripts/generate-certs.js",
     "create-admin": "node scripts/create-admin.js",
     "build": "node --check src/server.js src/app.js",
+    "build:client": "npm run build --prefix client",
+    "test": "npm run test:backend && npm run test:tax && npm run test:logger && npm run test:client",
     "test:backend": "node --test src/utils/password.test.js src/utils/jwt.test.js src/utils/response.test.js",
-    "test:api": "newman run postman/HustleHub-CI.postman_collection.json --insecure --env-var baseUrl=https://localhost:3000",
+    "test:tax": "node --test src/utils/taxEstimate.test.js",
+    "test:logger": "node --test src/utils/logger.test.js",
     "test:client": "npm test --prefix client",
-    "build:client": "npm run build --prefix client"
+    "test:ci": "newman run postman/HustleHub-CI.postman_collection.json --insecure --env-var baseUrl=https://localhost:3000",
+    "test:api": "newman run postman/HustleHub-Part2.postman_collection.json --insecure --environment postman/local-secrets.json",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down"
   },
   "keywords": [],
   "author": "",

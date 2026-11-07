@@ -1,5 +1,6 @@
 const { success } = require("../utils/response");
 const { findByFreelancerId } = require("../models/transactionModel");
+const { estimateTax, incomeByMonth } = require("../utils/taxEstimate");
 
 async function listMine(req, res, next) {
   try {
@@ -9,6 +10,8 @@ async function listMine(req, res, next) {
     return success(res, 200, "Income retrieved successfully", {
       items,
       totalIncome,
+      tax: estimateTax(totalIncome),
+      byMonth: incomeByMonth(items),
     });
   } catch (err) {
     return next(err);

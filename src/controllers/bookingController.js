@@ -7,6 +7,7 @@ const {
   confirmBooking,
 } = require("../models/bookingModel");
 const { createTransaction, findByBookingId } = require("../models/transactionModel");
+const logger = require("../utils/logger");
 
 async function create(req, res, next) {
   try {
@@ -17,6 +18,14 @@ async function create(req, res, next) {
     }
 
     const booking = await createBooking({
+      gigId: gig.id,
+      clientId: req.user.id,
+      freelancerId: gig.freelancerId,
+      amount: gig.price,
+    });
+
+    logger.info("booking.created", {
+      bookingId: booking.id,
       gigId: gig.id,
       clientId: req.user.id,
       freelancerId: gig.freelancerId,
@@ -65,6 +74,17 @@ async function confirm(req, res, next) {
       bookingId: confirmed.id,
       gigId: confirmed.gigId,
       clientId: confirmed.clientId,
+      freelancerId: confirmed.freelancerId,
+      amount: confirmed.amount,
+    });
+
+    logger.info("booking.confirmed", {
+      bookingId: confirmed.id,
+      clientId: confirmed.clientId,
+    });
+    logger.info("transaction.created", {
+      transactionId: transaction.id,
+      bookingId: confirmed.id,
       freelancerId: confirmed.freelancerId,
       amount: confirmed.amount,
     });
