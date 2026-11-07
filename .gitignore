@@ -12,3 +12,7 @@ client/coverage/
 postman/local-secrets.json
 logs/
 reports/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

@@ -283,10 +283,14 @@ That is the same as `docker compose up --build -d`. Stop with `npm run docker:do
 | Service | Image | Host port | Role |
 | --- | --- | --- | --- |
 | `mongo` | `mongo:7` | not published | Database `hustlehub` |
-| `api` | built from `./Dockerfile` | `3000` | HTTPS Express API (non-root user) |
+| `loki` | `grafana/loki:3.4.2` | `3100` | Log store that Grafana queries |
+| `api` | built from `./Dockerfile` | `3000` | HTTPS Express API (non-root user); ships JSON logs to Loki |
 | `web` | built from `./client/Dockerfile` | `8080` | Static React client |
+| `grafana` | `grafana/grafana:11.5.2` | `3001` | Dashboards for security and audit logs |
 
-Open **`http://localhost:8080`** for the website. The browser still talks to **`https://localhost:3000`**. Accept the self-signed certificate once (visit the health URL) the same way as local development.
+Open **`http://localhost:8080`** for the website. The browser still talks to **`https://localhost:3000`**. Accept the self-signed certificate once (visit the health URL) the same way as local development. Open **`http://localhost:3001`** for Grafana (local demo login `admin` / `admin`).
+
+Compose waits until MongoDB, the API, the website, and Grafana report healthy (`docker compose up --build -d --wait`). GitHub Actions runs this same stack as a required CI job, then Newman and Playwright against the containers.
 
 The API image generates its own TLS files at **build** time. Compose overrides `MONGODB_URI` to `mongodb://mongo:27017/hustlehub` so the API talks to the Mongo container, not `127.0.0.1`. `JWT_SECRET` still comes from `.env`. `CORS_ORIGINS` includes `http://localhost:8080`.
 
@@ -625,6 +629,26 @@ In Docker, mount the folder so logs survive container restarts, and set `TRUST_P
       - ./logs:/app/logs
 ```
 
+### Grafana and Loki
+
+Winston already writes one JSON object per line. In Compose the API also **pushes** those lines to **Grafana Loki** (`LOKI_URL=http://loki:3100/loki/api/v1/push`). Grafana is provisioned with a Loki datasource and the **HustleHub+ security and audit logs** dashboard (`observability/grafana/`). The dashboard charts log volume, failed logins, security/audit/error counts, and the live JSON stream. Passwords and tokens are redacted before the line leaves the API, so Grafana never stores them.
+
+| Where | URL | What a marker should see |
+| --- | --- | --- |
+| Grafana (local / CI) | `http://localhost:3001` | Dashboard `HustleHub+ security and audit logs` |
+| Loki | `http://localhost:3100/ready` | `ready` |
+| Grafana Cloud (optional) | your stack’s Loki push URL | Same JSON, shipped with `LOKI_URL`, `LOKI_USERNAME`, and `LOKI_PASSWORD` from `.env` |
+
+The local Grafana login is `admin` / `admin` for the demo only. Change `GRAFANA_ADMIN_PASSWORD` if the stack is reachable beyond this machine. Grafana Cloud is the hosted equivalent of this same Loki + Grafana pair; credentials stay in `.env` and are never committed.
+
+```bash
+npm run docker:up
+# use the site, or npm run demo:logs, then open Grafana
+npm run test:loki
+```
+
+Playwright also opens the dashboard and checks that Loki ingested `{service="hustlehub-api"}` streams. Screenshots from that run live in `docs/evidence/grafana/` and `docs/evidence/e2e/`.
+
 ### Logging tests
 
 `tests/logging.test.js` (Jest and Supertest) runs the real Express app with the Mongo models mocked. There are 19 tests. They check that every event above is written with the right fields, that the access log omits query strings, and that passwords and forged tokens never reach the logger. They also check that the 500 response hides the error while the log keeps it, and that redaction strips secrets and line breaks.
@@ -727,6 +751,26 @@ Imraan Nordien (ST10434419) produced the Postman collections, Newman run, screen
 **Part 2 demonstration video:** [https://youtu.be/eevV5RWQjZc](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The recording shows the React client and the live API: register and login, gigs, bookings, income, and admin, as required by The Independent Institute of Education (2026).
 
 **Part 1 demonstration video:** [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026). The earlier recording shows the API running over HTTPS, successful registration, and login with token generation.
+
+### Playwright (browser)
+
+GitHub Actions starts the Docker Compose stack, then Playwright Chromium runs `e2e/freelancer-marketplace.spec.js` and `e2e/grafana-dashboard.spec.js` against `http://localhost:8080` and Grafana. The checks cover a rejected login, freelancer registration, publishing a gig, the SARS tax estimate page, logout, Loki ingestion, and the provisioned Grafana dashboard. Locally, with the stack up:
+
+```bash
+npx playwright install chromium
+set E2E_SAVE_EVIDENCE=1
+npm run test:e2e
+```
+
+Screenshots from that run:
+
+![Playwright rejected login](./docs/evidence/e2e/01-login-rejected.png)
+
+![Playwright published gig](./docs/evidence/e2e/03-gig-published.png)
+
+![Playwright tax estimate](./docs/evidence/e2e/04-tax-estimate.png)
+
+![Grafana HustleHub dashboard](./docs/evidence/grafana/grafana-hustlehub-dashboard.png)
 
 ### 1. Health — API is running (`200`)
 
@@ -902,15 +946,18 @@ This evidence is kept for the Part 3 security review (The Independent Institute 
 
 ## CI/CD pipeline
 
-GitHub Actions runs **automatically** on every `push` and `pull_request` (`.github/workflows/ci.yml`). There is no `continue-on-error`. If unit tests, integration tests, or either build fails, the workflow is red and the check does not pass (GitHub, 2026).
+GitHub Actions runs **automatically** on every `push` and `pull_request` (`.github/workflows/ci.yml`). There is no `continue-on-error`. If unit tests, integration tests, container health, Playwright, or either build fails, the workflow is red and the check does not pass (GitHub, 2026).
 
 Classroom50’s `autograde.yaml` is left unchanged. This workflow is the project pipeline.
 
 | Job | Install | Test | Build |
 | --- | --- | --- | --- |
-| **Backend** | `npm ci` | `test:backend`, `test:tax`, `test:logger`, `test:logging`, then Newman `test:ci` against a live HTTPS API and MongoDB 7 | `npm run build` (`node --check`) |
+| **Backend** | `npm ci` | `test:backend`, `test:tax`, `test:logger` (includes Loki transport), `test:logging`, then Newman `test:ci` against a live HTTPS API and MongoDB 7 | `npm run build` (`node --check`) |
 | **Frontend** | `npm ci` in `client/` | Vitest `npm test` | `npm run build` (Vite production bundle) |
 | **Analysis** | `npm ci` (root and client) | Oxlint `lint:report` (errors and warnings fail the job) | — |
+| **Docker Compose and Playwright** | `npm ci` | `docker compose up --build --wait`; Newman against the **container** API; Loki ingestion check; Playwright Chromium against `http://localhost:8080` (register, gig, tax, logout) and Grafana at `http://localhost:3001` | Compose builds the API and web images |
+
+Playwright (`e2e/`) is the browser stage the lecture asks for: it drives the real React client talking to the real HTTPS API, including a failed login, freelancer registration, publishing a gig, the SARS tax estimate screen, and logout. It ignores the self-signed certificate the same way Newman uses `--insecure`. Evidence screenshots are uploaded as the `playwright-docker-evidence-*` artifact.
 
 Local commands:
 
@@ -920,9 +967,11 @@ Local commands:
 | API integration (Newman Part 2) | `npm run test:api` (needs `postman/local-secrets.json`) |
 | CI Newman collection | `npm run test:ci` |
 | Client production build | `npm run build:client` |
-| Container stack | `npm run docker:up` |
+| Container stack (includes Grafana) | `npm run docker:up` |
+| Playwright (stack must be up) | `npx playwright install chromium` then `npm run test:e2e` |
+| Loki ingestion | `npm run test:loki` |
 
-The backend job creates a **one-run** `JWT_SECRET` with `openssl rand` so no password, token, or connection string is stored in the repository. `MONGODB_URI` points at the workflow’s MongoDB service. Self-signed certs are generated in the runner; Newman uses `--insecure` only for that local stamp.
+The backend job creates a **one-run** `JWT_SECRET` with `openssl rand` so no password, token, or connection string is stored in the repository. The Docker job writes a throwaway `.env` on the runner with the same pattern. `MONGODB_URI` in the backend job points at the workflow’s MongoDB service; in the Docker job Compose overrides it to the `mongo` container. Self-signed certs are generated in the runner or at image build; Newman uses `--insecure` only for that local stamp.
 
 Inspect runs on the repository **Actions** tab. A green check means every required step passed.
 
@@ -938,6 +987,10 @@ Docker, Inc., 2024. *Docker Compose overview*. [online] Available at: <https://d
 
 GitHub, 2026. *GitHub Actions documentation*. [online] Available at: <https://docs.github.com/en/actions> [Accessed 7 November 2026].
 
+Grafana Labs, 2025. *Grafana documentation*. [online] Available at: <https://grafana.com/docs/grafana/latest/> [Accessed 7 November 2026].
+
+Grafana Labs, 2025. *Loki documentation*. [online] Available at: <https://grafana.com/docs/loki/latest/> [Accessed 7 November 2026].
+
 Grassi, P.A., Garcia, M.E. and Fenton, J.L., 2017. *Digital identity guidelines: authentication and lifecycle management*. NIST Special Publication 800-63B. [online] Gaithersburg: National Institute of Standards and Technology. Available at: <https://doi.org/10.6028/NIST.SP.800-63B> [Accessed 6 September 2026].
 
 Jones, M., Bradley, J. and Sakimura, N., 2015. *JSON web token (JWT)*. RFC 7519. [online] Internet Engineering Task Force. Available at: <https://www.rfc-editor.org/rfc/rfc7519> [Accessed 6 September 2026].
@@ -951,6 +1004,8 @@ Nordien, I., 2026. *HustleHub+ Part 1 demonstration*. [video online] Available a
 Nordien, I., 2026. *HustleHub+ Part 2 demonstration*. [video online] Available at: <https://youtu.be/eevV5RWQjZc> [Accessed 12 October 2026].
 
 OpenJS Foundation, 2024. *Node.js documentation*. [online] Available at: <https://nodejs.org/docs/latest/api/> [Accessed 6 September 2026].
+
+Microsoft, 2025. *Playwright*. [online] Available at: <https://playwright.dev/> [Accessed 7 November 2026].
 
 OpenJS Foundation, n.d. *Express — fast, unopinionated, minimalist web framework for Node.js*. [online] Available at: <https://expressjs.com/> [Accessed 6 September 2026].
 

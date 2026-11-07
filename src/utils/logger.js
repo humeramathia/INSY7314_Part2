@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const winston = require("winston");
+const { LokiTransport } = require("./lokiTransport");
 
 /**
  * Central application logger (Winston).
@@ -15,6 +16,7 @@ const winston = require("winston");
  * - logs/security.log: only security events (logins, denied access,
  *                      rate limiting, rejected tokens, unsafe input).
  * - logs/error.log:    only errors.
+ * - Grafana Loki:      when LOKI_URL is set (Compose Loki or Grafana Cloud).
  *
  * Safety rules applied to every entry:
  * - Passwords, tokens, secrets, and Authorization headers are replaced
@@ -176,6 +178,16 @@ if (!IS_TEST) {
     // If the folder cannot be created (for example a read-only container),
     // keep logging to the console rather than crashing the API.
     console.error(`Could not create log directory ${LOG_DIR}; logging to console only.`);
+  }
+
+  if (process.env.LOKI_URL) {
+    transports.push(
+      new LokiTransport({
+        url: process.env.LOKI_URL,
+        username: process.env.LOKI_USERNAME,
+        password: process.env.LOKI_PASSWORD,
+      })
+    );
   }
 }
 

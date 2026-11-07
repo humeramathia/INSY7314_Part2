@@ -127,3 +127,81 @@ jobs:
 
       - name: Analyse backend and frontend
         run: npm run lint:report
+
+  docker:
+    name: Docker Compose and Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Write CI environment file
+        run: |
+          JWT_SECRET=$(openssl rand -hex 32)
+          cat > .env <<EOF
+          PORT=3000
+          JWT_SECRET=${JWT_SECRET}
+          JWT_EXPIRES_IN=1h
+          MONGODB_URI=mongodb://127.0.0.1:27017/hustlehub
+          CORS_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
+          LOG_LEVEL=info
+          TRUST_PROXY=true
+          EOF
+
+      - name: Build and start Docker Compose stack
+        run: docker compose up --build -d --wait --wait-timeout 180
+
+      - name: Confirm API, web, Grafana, and Loki are up
+        run: |
+          curl -kfsS https://localhost:3000/api/health
+          curl -fsS -o /dev/null -w "%{http_code}" http://localhost:8080
+          echo
+          curl -fsS http://localhost:3001/api/health
+          curl -fsS http://localhost:3100/ready
+
+      - name: Run Newman against the container API
+        run: npm run test:ci
+
+      - name: Confirm Loki ingested API logs
+        run: npm run test:loki
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright end-to-end tests
+        run: npm run test:e2e
+        env:
+          E2E_BASE_URL: http://localhost:8080
+          GRAFANA_URL: http://localhost:3001
+          LOKI_QUERY_URL: http://localhost:3100
+          E2E_SAVE_EVIDENCE: "1"
+
+      - name: Upload Playwright and Grafana evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-docker-evidence-${{ github.run_id }}
+          path: |
+            reports/playwright
+            test-results
+            docs/evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Dump Compose logs on failure
+        if: failure()
+        run: docker compose ps -a && docker compose logs --no-color --tail 200
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
