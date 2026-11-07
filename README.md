@@ -989,6 +989,10 @@ The backend job creates a **one-run** `JWT_SECRET` with `openssl rand` so no pas
 
 Inspect runs on the repository **Actions** tab. A green check means every required step passed.
 
+**Figure:** GitHub Actions run [`42363156585`](https://github.com/humeramathia/INSY7314_Part2/actions/runs/42363156585) on branch `merge` — Backend, Frontend, Static code analysis, and **Docker Compose and Playwright** all succeeded.
+
+![GitHub Actions CI all jobs green](./docs/evidence/ci/github-actions-ci-green.png)
+
 ---
 
 ## Reference list
