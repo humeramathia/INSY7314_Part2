@@ -71,12 +71,12 @@ The static-analysis workflow ran automatically on a push to branch `Mo` at commi
 
 ## Group members
 
-| Name | Student number | Role on Part 2 |
-| --- | --- | --- |
-| **Humera Mathia** (Group Leader) | ST10276384 | Node.js / Express API: gigs, bookings, transactions, HTTPS server, React client, frontend Vitest suite, integration onto `main` |
-| **Mohammed Ba Yazed** | ST10174227 | MongoDB users and security: bcrypt, JWT, validation, sanitisation, rate limiting, Helmet/CSP |
-| **Lilitha Mlobi** | ST10454944 | Wire the React UI to the live API: auth context, protected routes, gig/booking/income screens |
-| **Imraan Nordien** | ST10434419 | Postman collection, Newman runs, API response screenshots, demonstration video |
+| Name | Student number | Role on Part 2 | Role on Part 3 |
+| --- | --- | --- | --- |
+| **Humera Mathia** (Group Leader) | ST10276384 | Node.js / Express API: gigs, bookings, transactions, HTTPS server, React client, frontend Vitest suite, integration onto `main` | SARS tax estimate and income charts, Docker Compose, account lockout and JWT denylist, security review, GitHub Actions CI, Playwright, Grafana/Loki, deployment package, README |
+| **Mohammed Ba Yazed** | ST10174227 | MongoDB users and security: bcrypt, JWT, validation, sanitisation, rate limiting, Helmet/CSP | Oxlint static analysis in the pipeline, fail-on-warning reports, GigForm remediation |
+| **Lilitha Mlobi** | ST10454944 | Wire the React UI to the live API: auth context, protected routes, gig/booking/income screens | Winston structured logging, redaction, log files, logging tests, Grafana-compatible JSON logs |
+| **Imraan Nordien** | ST10434419 | Postman collection, Newman runs, API response screenshots, demonstration video | Newman CI collection, API evidence screenshots, demonstration video |
 
 ---
 
