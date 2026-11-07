@@ -1,4 +1,5 @@
 const { rateLimit } = require("express-rate-limit");
+const { logSecurity } = require("../utils/logger");
 
 /**
  * Limits repeated authentication attempts.
@@ -11,6 +12,8 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 
   handler: (req, res) => {
+    // Repeated hits here usually mean password guessing or credential stuffing.
+    logSecurity("rate_limit.exceeded", req, { limiter: "auth" });
     return res.status(429).json({
       success: false,
       message: "Too many authentication attempts. Please try again later.",
@@ -31,6 +34,7 @@ const bookingLimiter = rateLimit({
   legacyHeaders: false,
 
   handler: (req, res) => {
+    logSecurity("rate_limit.exceeded", req, { limiter: "booking" });
     return res.status(429).json({
       success: false,
       message: "Too many booking requests. Please try again later.",

@@ -1,4 +1,5 @@
 const { fail } = require("../utils/response");
+const { logSecurity } = require("../utils/logger");
 
 /**
  * Removes basic HTML/script content from strings.
@@ -56,6 +57,9 @@ function sanitiseBody(req, res, next) {
 
     return next();
   } catch (err) {
+    // A "$" or "." key is a typical NoSQL injection payload ({"$ne": null}).
+    // The payload itself is not logged.
+    logSecurity("input.unsafe_rejected", req, { reason: "mongo_operator_key" });
     return fail(res, 400, "Invalid or unsafe request data.");
   }
 }

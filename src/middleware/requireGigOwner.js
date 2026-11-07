@@ -1,5 +1,6 @@
 const { fail } = require("../utils/response");
 const { findById } = require("../models/gigModel");
+const { logSecurity } = require("../utils/logger");
 
 async function requireGigOwner(req, res, next) {
   try {
@@ -10,6 +11,11 @@ async function requireGigOwner(req, res, next) {
     }
 
     if (gig.freelancerId !== req.user.id) {
+      logSecurity("access.denied", req, {
+        reason: "not_gig_owner",
+        gigId: gig.id,
+        ownerId: gig.freelancerId,
+      });
       return fail(res, 403, "Forbidden");
     }
 

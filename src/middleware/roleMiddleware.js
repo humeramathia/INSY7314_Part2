@@ -1,4 +1,5 @@
 const { fail } = require("../utils/response");
+const { logSecurity } = require("../utils/logger");
 
 const VALID_ROLES = ["client", "freelancer", "admin"];
 
@@ -24,6 +25,7 @@ function requireRole(requiredRole) {
     }
 
     if (req.user.role !== requiredRole) {
+      logSecurity("access.denied", req, { reason: "wrong_role", requiredRole });
       return fail(res, 403, "Forbidden. Insufficient permissions.");
     }
 

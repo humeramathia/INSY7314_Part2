@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "dev": "node --watch-path=src src/server.js",
+    "test": "jest",
+    "demo:logs": "node scripts/demo-logging.js",
     "certs": "node scripts/generate-certs.js",
     "create-admin": "node scripts/create-admin.js",
     "test:client": "npm test --prefix client"
@@ -23,6 +25,17 @@
     "express-validator": "^7.3.2",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.10.1"
+    "mongoose": "^9.10.1",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.3.1"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/tests"
+    ]
   }
 }

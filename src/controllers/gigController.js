@@ -7,6 +7,7 @@ const {
   updateGig,
   deleteGig,
 } = require("../models/gigModel");
+const { logAudit } = require("../utils/logger");
 
 async function listGigs(req, res, next) {
   try {
@@ -52,6 +53,8 @@ async function create(req, res, next) {
       freelancerId: req.user.id,
     });
 
+    logAudit("gig.created", req, { gigId: gig.id, price: gig.price, gigCategory: gig.category });
+
     return success(res, 201, "Gig created successfully", gig);
   } catch (err) {
     return next(err);
@@ -73,6 +76,8 @@ async function update(req, res, next) {
       return fail(res, 404, "Gig not found");
     }
 
+    logAudit("gig.updated", req, { gigId: gig.id, price: gig.price });
+
     return success(res, 200, "Gig updated successfully", gig);
   } catch (err) {
     return next(err);
@@ -86,6 +91,8 @@ async function remove(req, res, next) {
     if (!deleted) {
       return fail(res, 404, "Gig not found");
     }
+
+    logAudit("gig.deleted", req, { gigId: req.params.id });
 
     return success(res, 200, "Gig deleted successfully");
   } catch (err) {
