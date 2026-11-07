@@ -8,7 +8,11 @@
     "dev": "node --watch src/server.js",
     "certs": "node scripts/generate-certs.js",
     "create-admin": "node scripts/create-admin.js",
-    "test:client": "npm test --prefix client"
+    "build": "node --check src/server.js src/app.js",
+    "test:backend": "node --test src/utils/password.test.js src/utils/jwt.test.js src/utils/response.test.js",
+    "test:api": "newman run postman/HustleHub-CI.postman_collection.json --insecure --env-var baseUrl=https://localhost:3000",
+    "test:client": "npm test --prefix client",
+    "build:client": "npm run build --prefix client"
   },
   "keywords": [],
   "author": "",
@@ -24,5 +28,8 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.1"
+  },
+  "devDependencies": {
+    "newman": "^6.2.3"
   }
 }
