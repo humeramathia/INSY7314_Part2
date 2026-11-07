@@ -164,10 +164,18 @@ jobs:
       - name: Confirm API, web, Grafana, and Loki are up
         run: |
           curl -kfsS https://localhost:3000/api/health
-          curl -fsS -o /dev/null -w "%{http_code}" http://localhost:8080
-          echo
+          curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:8080
           curl -fsS http://localhost:3001/api/health
-          curl -fsS http://localhost:3100/ready
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3100/ready; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Loki did not become ready"
+          docker compose logs loki
+          exit 1
 
       - name: Run Newman against the container API
         run: npm run test:ci

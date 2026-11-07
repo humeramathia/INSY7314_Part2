@@ -292,6 +292,10 @@ Open **`http://localhost:8080`** for the website. The browser still talks to **`
 
 Compose waits until MongoDB, the API, the website, and Grafana report healthy (`docker compose up --build -d --wait`). GitHub Actions runs this same stack as a required CI job, then Newman and Playwright against the containers.
 
+**Figure:** Docker Desktop with the `hustlehub` Compose project running — Loki, MongoDB, Grafana, the HTTPS API, and the nginx web client.
+
+![Docker Desktop HustleHub stack](./docs/evidence/docker/docker-desktop-stack.png)
+
 The API image generates its own TLS files at **build** time. Compose overrides `MONGODB_URI` to `mongodb://mongo:27017/hustlehub` so the API talks to the Mongo container, not `127.0.0.1`. `JWT_SECRET` still comes from `.env`. `CORS_ORIGINS` includes `http://localhost:8080`.
 
 Stop the stack with `docker compose down`. Data in the `hustlehub_mongo` volume survives unless you add `-v`.
@@ -453,6 +457,10 @@ The React **Income** page (`client/src/pages/IncomePage.jsx`) shows:
 - a bar chart of income by UTC month
 - the calculation method and disclaimer from the API
 
+**Figure:** Income dashboard after a confirmed booking of R120 000. Estimated tax is R4 365 (18% bracket minus the R17 235 primary rebate).
+
+![Income and SARS tax dashboard](./docs/evidence/part3/tax-income-dashboard.png)
+
 Run `npm run test:tax` for the bracket tests. Frontend coverage is in `npm run test:client`.
 
 ---
@@ -515,7 +523,9 @@ These two controls are **not** in the POE minimum list (hashing, JWT, validation
 
 **What:** Each user document stores `failedLoginAttempts` and `lockUntil`. A wrong password increments the counter. After **five** failures the account is locked for **15 minutes** and login returns **HTTP 423**. A correct password clears the counter. Unknown emails still return the same `401` message so lockout does not become a user-enumeration oracle.
 
-**Why this is not the same as rate limiting:** `express-rate-limit` is keyed by **IP**. A botnet can spread guesses across addresses; a single attacker can also lock out a whole classroom NAT. Account lockout follows the **identity**, which is what NIST treats as a defence against online guessing (Grassi, Garcia and Fenton, 2017).
+**Why this is not the same as rate limiting:** `express-rate-limit` is keyed by **IP**. A botnet can spread guesses across addresses; a single attacker can also lock out a whole classroom NAT. Account lockout follows the **identity**, which is what NIST treats as a defence against online guessing (Grassi, Garcia and Fenton, 2017). The fifth failed password returns **423** so the user sees the lock, not another generic `401`.
+
+![Account lockout HTTP 423](./docs/evidence/part3/account-lockout-423.png)
 
 ### 2. JWT denylist on logout
 
@@ -524,6 +534,8 @@ These two controls are **not** in the POE minimum list (hashing, JWT, validation
 **What:** Every access token carries a unique `jti`. Logout writes that id to MongoDB with a TTL equal to the token’s remaining life. `authMiddleware` rejects denylisted tokens with `401`. The React client calls logout before it clears `sessionStorage`.
 
 **Why this is not the same as JWT expiry:** A signed JWT is valid until `exp` unless the server keeps a revocation list (Jones, Bradley and Sakimura, 2015). Without a denylist, a stolen token works until it ages out even after the user clicks Log out. The TTL index drops spent rows so the collection does not grow forever.
+
+![Logout then GET /api/auth/me returns 401](./docs/evidence/part3/logout-denylist-me-401.png)
 
 ---
 
@@ -768,7 +780,9 @@ Screenshots from that run:
 
 ![Playwright published gig](./docs/evidence/e2e/03-gig-published.png)
 
-![Playwright tax estimate](./docs/evidence/e2e/04-tax-estimate.png)
+![Playwright tax estimate (empty)](./docs/evidence/e2e/04-tax-estimate.png)
+
+![Income dashboard with confirmed booking](./docs/evidence/part3/tax-income-dashboard.png)
 
 ![Grafana HustleHub dashboard](./docs/evidence/grafana/grafana-hustlehub-dashboard.png)
 

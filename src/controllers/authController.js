@@ -90,6 +90,9 @@ async function login(req, res, next) {
         targetUserId: user._id.toString(),
         locked: Boolean(lockedNow),
       });
+      if (lockedNow) {
+        return fail(res, 423, "Account temporarily locked. Try again later.");
+      }
       return fail(res, 401, "Invalid email or password");
     }
 
