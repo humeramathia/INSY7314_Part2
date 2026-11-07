@@ -19,8 +19,9 @@ Part 2 is the **full MERN product**: MongoDB for users, gigs, bookings, and tran
 7. [Request flow](#request-flow)
 8. [Security decisions](#security-decisions)
 9. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
-10. [Reference list](#reference-list)
-11. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
+10. [CI/CD pipeline](#cicd-pipeline)
+11. [Reference list](#reference-list)
+12. [Disclosure of AI usage in this assessment](#disclosure-of-ai-usage-in-this-assessment)
 
 ---
 
@@ -333,9 +334,9 @@ The brief asks not only **what** was used, but **why** (The Independent Institut
 
 ### Rate limiting, Helmet, and sanitisation
 
-**What:** Auth routes are limited to 5 requests per 15 minutes. Booking routes are limited to 10 per 15 minutes. Helmet sets CSP. Request bodies are sanitised before controllers run.
+**What:** Auth routes are limited to 5 **failed** requests per 15 minutes (`skipSuccessfulRequests: true`). Booking routes are limited to 10 per 15 minutes. Helmet sets CSP. Request bodies are sanitised before controllers run.
 
-**Why:** Brute-force login and booking spam are slowed at the door. CSP reduces XSS impact in the browser. Sanitisation strips unexpected or dangerous input so Mongo queries and HTML views do not receive raw attacker strings (Open Worldwide Application Security Project, 2021).
+**Why:** Brute-force login and booking spam are slowed at the door. Successful logins do not burn the budget, so Newman and real users are not locked out after a normal session. CSP reduces XSS impact in the browser. Sanitisation strips unexpected or dangerous input so Mongo queries and HTML views do not receive raw attacker strings (Open Worldwide Application Security Project, 2021).
 
 ### Public register cannot create admin
 
@@ -362,6 +363,25 @@ npm test
 ```
 
 Coverage output is gitignored (`client/coverage/`).
+
+### Backend tests and builds
+
+From the repo root, with MongoDB running and `.env` set:
+
+```bash
+npm run test:backend
+npm run build
+npm run certs
+npm run dev
+```
+
+In a second terminal:
+
+```bash
+npm run test:api
+```
+
+`test:backend` is Node’s test runner (hashing, JWT, JSON envelope). `test:api` is Newman against `postman/HustleHub-CI.postman_collection.json` on the live HTTPS API (`--insecure` for the local certificate). `build` syntax-checks the API entry files. `build:client` is the production Vite bundle.
 
 ---
 
@@ -445,9 +465,28 @@ The login token identifies the user. The password is still not returned.
 
 ---
 
+## CI/CD pipeline
+
+GitHub Actions runs **automatically** on every `push` and `pull_request` (`.github/workflows/ci.yml`). There is no `continue-on-error`. If unit tests, integration tests, or either build fails, the workflow is red and the check does not pass (GitHub, 2026).
+
+Classroom50’s `autograde.yaml` is left unchanged. This workflow is the project pipeline.
+
+| Job | Install | Test | Build |
+| --- | --- | --- | --- |
+| **Backend** | `npm ci` | `npm run test:backend` then Newman `npm run test:api` against a live HTTPS API and MongoDB 7 service | `npm run build` (`node --check`) |
+| **Frontend** | `npm ci` in `client/` | Vitest `npm test` | `npm run build` (Vite production bundle) |
+
+The backend job creates a **one-run** `JWT_SECRET` with `openssl rand` so no password, token, or connection string is stored in the repository. `MONGODB_URI` points at the workflow’s MongoDB service. Self-signed certs are generated in the runner; Newman uses `--insecure` only for that local stamp.
+
+Inspect runs on the repository **Actions** tab. A green check means every required step passed.
+
+---
+
 ## Reference list
 
 Cursor, 2026. *Cursor*. [generative AI coding assistant]. Available at: <https://www.cursor.com/> [Accessed 9 October 2026].
+
+GitHub, 2026. *GitHub Actions documentation*. [online] Available at: <https://docs.github.com/en/actions> [Accessed 7 November 2026].
 
 Grassi, P.A., Garcia, M.E. and Fenton, J.L., 2017. *Digital identity guidelines: authentication and lifecycle management*. NIST Special Publication 800-63B. [online] Gaithersburg: National Institute of Standards and Technology. Available at: <https://doi.org/10.6028/NIST.SP.800-63B> [Accessed 6 September 2026].
 
