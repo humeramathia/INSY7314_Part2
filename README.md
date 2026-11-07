@@ -590,6 +590,8 @@ The login token identifies the user. The password is still not returned.
 
 ## Reference list
 
+Anthropic, 2026. *Claude*. [generative AI assistant]. Available at: <https://claude.ai/> [Accessed 7 November 2026].
+
 Cursor, 2026. *Cursor*. [generative AI coding assistant]. Available at: <https://www.cursor.com/> [Accessed 9 October 2026].
 
 Grassi, P.A., Garcia, M.E. and Fenton, J.L., 2017. *Digital identity guidelines: authentication and lifecycle management*. NIST Special Publication 800-63B. [online] Gaithersburg: National Institute of Standards and Technology. Available at: <https://doi.org/10.6028/NIST.SP.800-63B> [Accessed 6 September 2026].
@@ -628,10 +630,22 @@ This annexure follows The IIE’s labelling and disclosure rules for generative 
 
 **Section(s) of the assessment where AI was used:** Git merges and branch integration (Humera, Mo, Lilitha, and `main`), not the written security rationale or the original application design.
 
-**Name of AI tool(s) used:** Cursor (Cursor, 2026).
+**Name of AI tool(s) used:** Cursor (Cursor, 2026) and Claude (Anthropic, 2026).
 
 **Purpose / intention behind use:** The group used Cursor to **understand merge conflicts** and to **sort conflicts and branches**. Several people were committing to the same repository. We did not want to delete someone else’s code by mistake while accepting or rejecting conflict markers. Cursor was used as a second pair of eyes to explain what each side of a conflict meant so we could keep the correct Humera, Mo, and Lilitha work. We reviewed every suggested resolution before it was committed. Cursor did not replace group decisions, and we remain responsible for the quality and integrity of this submission (The Independent Institute of Education, 2025).
 
 **Date(s) on which generative AI was used:** September–October 2026, during branch merges onto `Humera` and `main`.
 
 **Chat record:** Cursor chats are stored in the local Cursor session used by the group leader. There is no public shareable chat URL. Direct AI wording was not copied into this README or into production code as an unreviewed block.
+
+### Claude (logging and monitoring)
+
+**Section(s) of the assessment where AI was used:** The logging and monitoring requirement, completed by Lilitha Mlobi: the Winston logger (`src/utils/logger.js`), request IDs and access logging (`src/middleware/requestLogger.js`), the security and audit log calls in the controllers and middleware, the logging tests (`tests/logging.test.js`), the demo script (`scripts/demo-logging.js`), and the first draft of the Logging and monitoring section of this README.
+
+**Name of AI tool(s) used:** Claude (Anthropic, 2026).
+
+**Purpose / intention behind use:** Claude was used to write and explain the logging code and tests, to suggest which events should be logged and why, and to help set up MongoDB Atlas and Git for the test run. Lilitha ran the tests and the demo script on her own machine against the real database and checked the log output. The log lines and screenshot in the Logging evidence section come from that run. We remain responsible for the quality and integrity of this submission (The Independent Institute of Education, 2025).
+
+**Date(s) on which generative AI was used:** 5 to 7 November 2026.
+
+**Chat record:** The Claude conversation is saved in the Claude account of Lilitha Mlobi and can be shared on request.
