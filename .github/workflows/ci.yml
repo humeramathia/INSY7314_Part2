@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests and build
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 1)'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PORT: 3000
+      MONGODB_URI: mongodb://127.0.0.1:27017/hustlehub
+      JWT_EXPIRES_IN: 1h
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Generate CI JWT secret
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Run backend unit tests
+        run: npm run test:backend
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Generate HTTPS certificates
+        run: npm run certs
+
+      - name: Start API and run integration tests
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            if curl -kfsS https://localhost:3000/api/health >/dev/null; then
+              echo "API is healthy"
+              npm run test:api
+              exit $?
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy"
+          exit 1
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: client
+
+      - name: Run frontend tests
+        run: npm test
+        working-directory: client
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: client
