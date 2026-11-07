@@ -1,7 +1,9 @@
 const { rateLimit } = require("express-rate-limit");
+const { logSecurity } = require("../utils/logger");
 
-function jsonHandler(message) {
+function jsonHandler(message, limiter) {
   return (req, res) => {
+    logSecurity("rate_limit.exceeded", req, { limiter });
     return res.status(429).json({
       success: false,
       message,
@@ -19,7 +21,7 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  handler: jsonHandler("Too many authentication attempts. Please try again later."),
+  handler: jsonHandler("Too many authentication attempts. Please try again later.", "auth"),
 });
 
 /**
@@ -32,7 +34,7 @@ const registerLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  handler: jsonHandler("Too many registration attempts. Please try again later."),
+  handler: jsonHandler("Too many registration attempts. Please try again later.", "register"),
 });
 
 const bookingLimiter = rateLimit({
@@ -40,7 +42,7 @@ const bookingLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  handler: jsonHandler("Too many booking requests. Please try again later."),
+  handler: jsonHandler("Too many booking requests. Please try again later.", "booking"),
 });
 
 module.exports = {

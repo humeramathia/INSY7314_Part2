@@ -54,6 +54,9 @@ jobs:
       - name: Run logger tests
         run: npm run test:logger
 
+      - name: Run Winston logging tests
+        run: npm run test:logging
+
       - name: Build backend
         run: npm run build
 

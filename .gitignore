@@ -10,3 +10,4 @@ Thumbs.db
 coverage/
 client/coverage/
 postman/local-secrets.json
+logs/

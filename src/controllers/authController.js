@@ -11,7 +11,7 @@ const {
   clearFailedLogins,
 } = require("../models/userModel");
 const { denyToken } = require("../models/tokenDenylist");
-const logger = require("../utils/logger");
+const { logSecurity } = require("../utils/logger");
 
 function toPublicUser(user) {
   return {
@@ -31,10 +31,16 @@ async function register(req, res, next) {
     const publicRole = String(role).trim().toLowerCase();
 
     if (publicRole !== "client" && publicRole !== "freelancer") {
+      logSecurity("auth.register.rejected", req, {
+        reason: "invalid_role",
+        requestedRole: publicRole,
+        email,
+      });
       return fail(res, 400, "Role must be client or freelancer");
     }
 
     if (await emailExists(email)) {
+      logSecurity("auth.register.rejected", req, { reason: "duplicate_email", email });
       return fail(res, 409, "Email already registered");
     }
 
@@ -45,6 +51,13 @@ async function register(req, res, next) {
       password: hashedPassword,
       role: publicRole,
     });
+
+    logSecurity(
+      "auth.register.success",
+      req,
+      { newUserId: user._id.toString(), newUserRole: user.role, email },
+      "info"
+    );
 
     return success(res, 201, "User registered successfully", toPublicUser(user));
   } catch (err) {
@@ -58,12 +71,12 @@ async function login(req, res, next) {
     const user = await findByEmail(email);
 
     if (!user) {
-      logger.warn("login.failed", { reason: "unknown_email" });
+      logSecurity("auth.login.failure", req, { reason: "unknown_email", email });
       return fail(res, 401, "Invalid email or password");
     }
 
     if (isLocked(user)) {
-      logger.warn("login.locked", { userId: user._id.toString() });
+      logSecurity("auth.login.locked", req, { userId: user._id.toString(), email });
       return fail(res, 423, "Account temporarily locked. Try again later.");
     }
 
@@ -71,9 +84,10 @@ async function login(req, res, next) {
 
     if (!isMatch) {
       const lockedNow = await recordFailedLogin(user);
-      logger.warn("login.failed", {
-        userId: user._id.toString(),
-        reason: "bad_password",
+      logSecurity("auth.login.failure", req, {
+        reason: "wrong_password",
+        email,
+        targetUserId: user._id.toString(),
         locked: Boolean(lockedNow),
       });
       return fail(res, 401, "Invalid email or password");
@@ -86,7 +100,12 @@ async function login(req, res, next) {
       role: user.role,
     });
 
-    logger.info("login.success", { userId: user._id.toString(), role: user.role });
+    logSecurity(
+      "auth.login.success",
+      req,
+      { userId: user._id.toString(), role: user.role, email },
+      "info"
+    );
 
     return success(res, 200, "Login successful", {
       token,
@@ -120,7 +139,12 @@ async function logout(req, res, next) {
         : new Date(Date.now() + 60 * 60 * 1000);
       await denyToken(decoded.jti, expiresAt);
     }
-    logger.info("logout.success", { userId: req.user?.id, role: req.user?.role });
+    logSecurity(
+      "auth.logout.success",
+      req,
+      { userId: req.user?.id, role: req.user?.role },
+      "info"
+    );
     return success(res, 200, "Logged out successfully");
   } catch (err) {
     return next(err);

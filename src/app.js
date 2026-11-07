@@ -6,6 +6,7 @@ const { success } = require("./utils/response");
 const { errorMiddleware } = require("./middleware/errorMiddleware");
 const { notFoundMiddleware } = require("./middleware/notFound");
 const { sanitiseBody } = require("./middleware/sanitiseMiddleware");
+const { requestId, accessLogger } = require("./middleware/requestLogger");
 const authRoutes = require("./routes/authRoutes");
 const gigRoutes = require("./routes/gigRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -13,6 +14,17 @@ const bookingRoutes = require("./routes/bookingRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 
 const app = express();
+
+// Behind Docker / a reverse proxy, trust one hop so req.ip is the real
+// client address in logs and rate limiting.
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
+// Request ID and access logging run first so every request is logged,
+// including ones rejected by later middleware.
+app.use(requestId);
+app.use(accessLogger);
 
 /**
  * Security headers.
@@ -38,6 +50,7 @@ app.use(
   cors({
     origin: CORS_ORIGINS,
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["X-Request-Id"],
   })
 );
 

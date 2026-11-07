@@ -5,15 +5,17 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "dev": "node --watch-path=src src/server.js",
     "certs": "node scripts/generate-certs.js",
     "create-admin": "node scripts/create-admin.js",
+    "demo:logs": "node scripts/demo-logging.js",
     "build": "node --check src/server.js src/app.js",
     "build:client": "npm run build --prefix client",
-    "test": "npm run test:backend && npm run test:tax && npm run test:logger && npm run test:client",
+    "test": "npm run test:backend && npm run test:tax && npm run test:logger && npm run test:logging && npm run test:client",
     "test:backend": "node --test src/utils/password.test.js src/utils/jwt.test.js src/utils/response.test.js",
     "test:tax": "node --test src/utils/taxEstimate.test.js",
     "test:logger": "node --test src/utils/logger.test.js",
+    "test:logging": "jest --runInBand",
     "test:client": "npm test --prefix client",
     "test:ci": "newman run postman/HustleHub-CI.postman_collection.json --insecure --env-var baseUrl=https://localhost:3000",
     "test:api": "newman run postman/HustleHub-Part2.postman_collection.json --insecure --environment postman/local-secrets.json",
@@ -33,9 +35,18 @@
     "express-validator": "^7.3.2",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.10.1"
+    "mongoose": "^9.10.1",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
-    "newman": "^6.2.3"
+    "jest": "^29.7.0",
+    "newman": "^6.2.3",
+    "supertest": "^7.3.1"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/tests"
+    ]
   }
 }

@@ -22,7 +22,7 @@ This repository is the **complete application**: Part 1 authentication, Part 2 g
 10. [Security decisions](#security-decisions)
 11. [Own security features](#own-security-features)
 12. [Security review](#security-review)
-13. [Logging](#logging)
+13. [Logging and monitoring](#logging-and-monitoring)
 14. [Testing, screenshots, and demonstration](#testing-screenshots-and-demonstration)
 15. [CI/CD pipeline](#cicd-pipeline)
 16. [OWASP ZAP results](#owasp-zap-results)
@@ -163,6 +163,10 @@ hustlehub-plus/
 │   ├── Dockerfile
 │   └── nginx.conf
 ├── certs/                         # local SSL files (not committed)
+├── logs/                          # app.log, security.log, error.log (not committed)
+├── docs/logging/                  # logging evidence screenshots
+├── tests/
+│   └── logging.test.js            # Jest + Supertest logging tests
 ├── postman/
 │   ├── HustleHub-Part1.postman_collection.json
 │   ├── HustleHub-Part2.postman_collection.json
@@ -170,6 +174,7 @@ hustlehub-plus/
 │   └── screenshots/               # Part 1 and Part 2 Postman images
 ├── scripts/
 │   ├── generate-certs.js
+│   ├── demo-logging.js            # sends demo requests to fill the logs
 │   └── create-admin.js            # bootstrap an admin (not public register)
 └── src/
     ├── server.js                  # HTTPS only
@@ -178,8 +183,8 @@ hustlehub-plus/
     ├── routes/
     ├── controllers/
     ├── models/                    # user, gig, booking, transaction, token denylist
-    ├── middleware/
-    └── utils/                     # hashing, JWT, SARS tax estimate, logger
+    ├── middleware/                # includes requestLogger.js
+    └── utils/                     # hashing, JWT, SARS tax estimate, Winston logger
 ```
 
 Routes only map addresses. Middleware enforces security before a controller runs. Utils hold hashing and JWT. Models own storage. That split is itself a boundary: validation cannot be skipped by hiding logic in one large file (The Independent Institute of Education, 2026).
@@ -505,22 +510,140 @@ Residual risk: this is a classroom stack with a **self-signed** certificate and 
 
 ---
 
-## Logging
+## Logging and monitoring
 
-The API writes **one JSON object per line** on stdout (`src/utils/logger.js`). Passwords, JWTs, and `MONGODB_URI` are never included.
+### What was built
 
-| Event | When |
-| --- | --- |
-| `login.success` | Correct password; includes `userId` and `role` |
-| `login.failed` | Unknown email or bad password; lockout flag if the fifth failure just fired |
-| `login.locked` | Request while `lockUntil` is still in the future |
-| `logout.success` | Token `jti` stored on the denylist |
-| `booking.created` | Client booking inserted |
-| `booking.confirmed` | Client confirmed a pending booking |
-| `transaction.created` | Simulated payment row written |
-| `app.error` | Unexpected 500; message only, no stack to the client |
+**What:** The API uses **Winston** for structured logging (Winston, 2024). All logging goes through one module, `src/utils/logger.js`. Each entry is one line of JSON with a timestamp, level, event name, request ID, user ID, role, IP address, method, and path. JSON lines can be searched with tools like `grep` or `jq` and imported into a log platform later without rewriting the code.
 
-`docker compose logs api` shows the same stream. That format is what a later Grafana/Loki (or similar) sink would scrape; this submission keeps the collector local so Classroom50 does not need extra cloud credentials.
+| Output | What it holds | Why it is separate |
+| --- | --- | --- |
+| Console (stdout) | Every entry | `docker compose logs api` shows the logs when the API runs in a container. |
+| `logs/app.log` | Every entry at `LOG_LEVEL` and above | Full history: requests, security events, bookings, transactions, errors. |
+| `logs/security.log` | Security events only (`category: "security"`) | A reviewer can check suspicious activity without reading normal traffic. |
+| `logs/error.log` | Errors only | Failures stand out straight away. |
+
+Files rotate at 5 MB and keep 5 old files, so logs cannot fill the disk. The `logs/` folder is gitignored. `LOG_LEVEL`, `LOG_DIR`, and `TRUST_PROXY` are set in `.env` (see `.env.example`).
+
+**Request IDs:** `src/middleware/requestLogger.js` gives every request a random UUID. The API returns it in the `X-Request-Id` header, and every log line for that request carries the same ID. If a user reports "something went wrong", their request ID finds the matching access, security, and error lines. For example, a booking confirmation and the transaction it creates share one request ID.
+
+### What is logged
+
+| Event | Level | Where it is logged | Key fields |
+| --- | --- | --- | --- |
+| `http.request` | info / warn (4xx) / error (5xx) | `requestLogger.js`, every request | method, path, status, durationMs, ip, userId |
+| `auth.login.success` | info | `authController.login` | userId, role, masked email |
+| `auth.login.failure` | warn | `authController.login` | reason (`unknown_email` or `wrong_password`), masked email |
+| `auth.register.success` / `auth.register.rejected` | info / warn | `authController.register` | reason (`duplicate_email`, `invalid_role`), requested role |
+| `auth.token.missing` / `auth.token.invalid` | warn | `authMiddleware` | reason (`expired`, `bad_signature_or_malformed`, `missing_claims`) |
+| `access.denied` | warn | `roleMiddleware`, `requireGigOwner`, booking confirm | reason (`wrong_role`, `not_gig_owner`, `not_booking_owner`), resource ID, owner ID |
+| `rate_limit.exceeded` | warn | `rateLimitMiddleware` | limiter (`auth` or `booking`) |
+| `input.unsafe_rejected` | warn | `sanitiseMiddleware` | reason (`mongo_operator_key`) |
+| `gig.created` / `gig.updated` / `gig.deleted` | info | `gigController` | gigId, price, gigCategory |
+| `booking.created` | info | `bookingController.create` | bookingId, gigId, clientId, freelancerId, amount |
+| `booking.create.failed` / `booking.confirm.failed` | warn | `bookingController` | reason (`gig_not_found`, `booking_not_found`, `already_confirmed`) |
+| `booking.confirmed` | info | `bookingController.confirm` | bookingId, clientId, freelancerId |
+| `transaction.recorded` | info | `bookingController.confirm` | transactionId, bookingId, amount, clientId, freelancerId |
+| `transaction.duplicate_blocked` | warn | `bookingController.confirm` | bookingId, existing transactionId |
+| `transaction.income_viewed` | info | `transactionController` | transactionCount, totalIncome |
+| `error.unhandled` | error | `errorMiddleware` | errorName, errorMessage, stack, requestId |
+| `request.invalid_json` | warn | `errorMiddleware` | requestId, path |
+| `server.started`, `db.connected`, `db.disconnected`, `db.error`, `process.uncaught_exception`, `process.unhandled_rejection` | info–error | `server.js`, `config/db.js` | port, host, database name, error details |
+
+### What is never logged
+
+Logs are a common target, so they must not become a second copy of user secrets (Open Worldwide Application Security Project, n.d.).
+
+- **Passwords, JWTs, and secrets** are never passed to the logger. As a backstop, the logger replaces any field named `password`, `token`, `authorization`, `jwt`, `secret`, or `cookie` with `[REDACTED]`.
+- **Email addresses are masked** (`li***@example.com`). The masked form is still enough to spot several failed logins against one account.
+- **Request bodies and headers are not logged.** Query strings are removed from the path, so a token sent in a URL cannot reach the log.
+- **The MongoDB URI is not logged** because it can contain credentials. Only the host and database name are.
+- **Line breaks and control characters are stripped** from logged strings. This stops log injection, where an attacker puts a newline in an input field to forge a fake log line.
+- **Stack traces stay on the server.** `error.log` keeps the stack for debugging, while the client still only receives `"Something went wrong"`.
+
+### Why these logs matter for monitoring and security
+
+Security logging and monitoring failures are listed as A09 in the OWASP Top 10. Without logs, an attack can go on for weeks with nothing to show it happened or how far it got (Open Worldwide Application Security Project, 2021).
+
+- **Login attempts:** Many `auth.login.failure` entries with `wrong_password` against one masked email suggest someone is guessing that account's password. Many `unknown_email` failures from one IP suggest someone is testing a list of stolen emails. The client always receives the same generic message, so attackers learn nothing, but the server keeps the exact reason. `auth.login.success` after a run of failures from the same IP is the most important line to check, because it may mean a guess worked.
+- **Tokens and access control:** `auth.token.invalid` with `bad_signature_or_malformed` means someone sent a forged or edited JWT, for example to change their role to `admin`. `access.denied` shows broken access control attempts, such as a client calling an admin route or confirming another client's booking (A01 in the OWASP Top 10). Each line names the user ID, so repeat offenders can be identified.
+- **Bookings and transactions:** HustleHub+ records money-related events. `booking.created`, `booking.confirmed`, and `transaction.recorded` form an audit trail showing who booked what, who confirmed it, the amount, and when. That trail can settle a dispute between a client and a freelancer and helps check that income totals are right. `transaction.duplicate_blocked` shows attempts to be charged or paid twice for one booking.
+- **Abuse and injection:** `rate_limit.exceeded` shows automated attacks hitting the limiter. `input.unsafe_rejected` records NoSQL injection payloads such as `{"$ne": null}` that the sanitiser blocked, showing the protection is being tested and is working.
+- **Errors:** `error.unhandled` with a stack and request ID lets the team find and fix a fault quickly. A sudden rise in `error.unhandled` or `db.error` lines is an early sign of an outage or of an attacker sending inputs that crash the API.
+
+**Using the logs:** Because each line is JSON, simple commands answer monitoring questions:
+
+```bash
+# Failed logins, newest last
+grep '"auth.login.failure"' logs/security.log
+
+# Every action in one request
+grep '<request-id>' logs/app.log
+
+# Count failed logins per IP (needs jq)
+jq -r 'select(.event=="auth.login.failure") | .ip' logs/security.log | sort | uniq -c | sort -rn
+```
+
+In Docker, mount the folder so logs survive container restarts, and set `TRUST_PROXY=true` if a proxy sits in front of the API so the real client IP is logged:
+
+```yaml
+  api:
+    volumes:
+      - ./logs:/app/logs
+```
+
+### Logging tests
+
+`tests/logging.test.js` (Jest and Supertest) runs the real Express app with the Mongo models mocked. There are 19 tests. They check that every event above is written with the right fields, that the access log omits query strings, and that passwords and forged tokens never reach the logger. They also check that the 500 response hides the error while the log keeps it, and that redaction strips secrets and line breaks.
+
+```bash
+npm run test:logging
+```
+
+### Generating log evidence
+
+With the API running (`npm run dev`), a second terminal can run:
+
+```bash
+npm run demo:logs
+```
+
+`scripts/demo-logging.js` sends a realistic sequence of requests to the API. It registers a freelancer and a client, logs in with a wrong password and then the right one, creates a gig, books it, confirms it (which records a transaction), and tries to confirm it again. It then sends blocked requests: a client calling an admin route, a missing token, a forged admin token, a NoSQL injection payload, broken JSON, and one login too many for the rate limiter. Each step prints its HTTP status, and the matching entries appear in `logs/security.log` and `logs/app.log`. The auth limiter allows five register and login requests per 15 minutes, so wait 15 minutes before running it again.
+
+### Logging evidence
+
+The lines below are copied from the log files after running `npm run demo:logs` against the API connected to MongoDB Atlas on 7 November 2026. Passwords and tokens appear nowhere, and email addresses are masked.
+
+**`logs/security.log`:** a wrong password followed by a successful login, a client calling an admin route, a forged JWT, a blocked NoSQL injection payload, and the rate limiter stopping a sixth login attempt:
+
+```json
+{"timestamp":"2026-11-07T01:29:16.438Z","level":"warn","event":"auth.login.failure","category":"security","requestId":"22b3131b-8ec1-41f4-b44f-ea9e5c6ef4b9","ip":"::1","method":"POST","path":"/api/auth/login","reason":"wrong_password","email":"cl***@example.com","targetUserId":"6aee7eeb45b22ffc575fedc7","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.785Z","level":"info","event":"auth.login.success","category":"security","requestId":"5f680adf-597c-4f67-ad57-d15457a4e070","ip":"::1","method":"POST","path":"/api/auth/login","userId":"6aee7eeb45b22ffc575fedc7","role":"client","email":"cl***@example.com","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.929Z","level":"warn","event":"access.denied","category":"security","requestId":"2d674aea-bf64-4105-a3d1-5442e93cc5ec","ip":"::1","method":"GET","path":"/api/admin/gigs","userId":"6aee7eeb45b22ffc575fedc7","role":"client","reason":"wrong_role","requiredRole":"admin","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.942Z","level":"warn","event":"auth.token.invalid","category":"security","requestId":"a4598234-8ee2-46e5-9781-df21494eac56","ip":"::1","method":"GET","path":"/api/auth/me","reason":"bad_signature_or_malformed","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.948Z","level":"warn","event":"input.unsafe_rejected","category":"security","requestId":"7094f2c4-9171-4049-b5a7-aa6dff20aab6","ip":"::1","method":"POST","path":"/api/auth/login","reason":"mongo_operator_key","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.963Z","level":"warn","event":"rate_limit.exceeded","category":"security","requestId":"a6a548f8-2264-4dac-8e4e-968f07643276","ip":"::1","method":"POST","path":"/api/auth/login","limiter":"auth","service":"hustlehub-api"}
+```
+
+**`logs/app.log`:** the booking and transaction audit trail. The confirmation and the transaction share one `requestId`, and the second confirmation attempt is refused:
+
+```json
+{"timestamp":"2026-11-07T01:29:16.840Z","level":"info","event":"booking.created","category":"audit","requestId":"28040bd2-1f00-4d19-bb1f-386acfafb946","ip":"::1","method":"POST","path":"/api/bookings","userId":"6aee7eeb45b22ffc575fedc7","role":"client","bookingId":"6aee7eec45b22ffc575fedc9","gigId":"6aee7eec45b22ffc575fedc8","clientId":"6aee7eeb45b22ffc575fedc7","freelancerId":"6aee7eeb45b22ffc575fedc6","amount":750,"status":"pending","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.891Z","level":"info","event":"booking.confirmed","category":"audit","requestId":"5979151b-43e9-45ce-8325-5705ce217b41","ip":"::1","method":"POST","path":"/api/bookings/6aee7eec45b22ffc575fedc9/confirm","userId":"6aee7eeb45b22ffc575fedc7","role":"client","bookingId":"6aee7eec45b22ffc575fedc9","gigId":"6aee7eec45b22ffc575fedc8","clientId":"6aee7eeb45b22ffc575fedc7","freelancerId":"6aee7eeb45b22ffc575fedc6","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.892Z","level":"info","event":"transaction.recorded","category":"audit","requestId":"5979151b-43e9-45ce-8325-5705ce217b41","ip":"::1","method":"POST","path":"/api/bookings/6aee7eec45b22ffc575fedc9/confirm","userId":"6aee7eeb45b22ffc575fedc7","role":"client","transactionId":"6aee7eec45b22ffc575fedca","bookingId":"6aee7eec45b22ffc575fedc9","gigId":"6aee7eec45b22ffc575fedc8","clientId":"6aee7eeb45b22ffc575fedc7","freelancerId":"6aee7eeb45b22ffc575fedc6","amount":750,"type":"booking","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.905Z","level":"warn","event":"booking.confirm.failed","category":"audit","requestId":"143da856-c015-4b28-85d8-c367d68a63d7","ip":"::1","method":"POST","path":"/api/bookings/6aee7eec45b22ffc575fedc9/confirm","userId":"6aee7eeb45b22ffc575fedc7","role":"client","reason":"already_confirmed","bookingId":"6aee7eec45b22ffc575fedc9","service":"hustlehub-api"}
+{"timestamp":"2026-11-07T01:29:16.920Z","level":"info","event":"transaction.income_viewed","category":"audit","requestId":"c7f037f5-8af1-4f15-aedd-0e23a12216bf","ip":"::1","method":"GET","path":"/api/transactions/mine","userId":"6aee7eeb45b22ffc575fedc6","role":"freelancer","transactionCount":1,"totalIncome":750,"service":"hustlehub-api"}
+```
+
+**`logs/error.log`:** a startup failure recorded while the database was unreachable (the computer's IP had not yet been added to the Atlas access list):
+
+```json
+{"timestamp":"2026-11-07T00:29:35.161Z","level":"error","event":"db.connect.failed","category":"error","errorName":"MongooseServerSelectionError","errorMessage":"Could not connect to any servers in your MongoDB Atlas cluster. One common reason is that you're trying to access the database from an IP that isn't whitelisted. Make sure your current IP address is on your Atlas cluster's IP whitelist: https://www.mongodb.com/docs/atlas/security-whitelist/","service":"hustlehub-api"}
+```
+
+**Demo script output:** every request sent by `npm run demo:logs` and the status the API returned. Each line matches one of the log entries above.
+
+![Output of npm run demo:logs](./docs/logging/demo-output.png)
 
 ---
 
@@ -752,7 +875,7 @@ Classroom50’s `autograde.yaml` is left unchanged. This workflow is the project
 
 | Job | Install | Test | Build |
 | --- | --- | --- | --- |
-| **Backend** | `npm ci` | `test:backend`, `test:tax`, `test:logger`, then Newman `test:ci` against a live HTTPS API and MongoDB 7 | `npm run build` (`node --check`) |
+| **Backend** | `npm ci` | `test:backend`, `test:tax`, `test:logger`, `test:logging`, then Newman `test:ci` against a live HTTPS API and MongoDB 7 | `npm run build` (`node --check`) |
 | **Frontend** | `npm ci` in `client/` | Vitest `npm test` | `npm run build` (Vite production bundle) |
 
 Local commands:
@@ -772,6 +895,8 @@ Inspect runs on the repository **Actions** tab. A green check means every requir
 ---
 
 ## Reference list
+
+Anthropic, 2026. *Claude*. [generative AI assistant]. Available at: <https://claude.ai/> [Accessed 7 November 2026].
 
 Cursor, 2026. *Cursor*. [generative AI coding assistant]. Available at: <https://www.cursor.com/> [Accessed 9 October 2026].
 
@@ -795,6 +920,8 @@ OpenJS Foundation, 2024. *Node.js documentation*. [online] Available at: <https:
 
 OpenJS Foundation, n.d. *Express — fast, unopinionated, minimalist web framework for Node.js*. [online] Available at: <https://expressjs.com/> [Accessed 6 September 2026].
 
+Open Worldwide Application Security Project, n.d. *Logging cheat sheet*. [online] OWASP Cheat Sheet Series. Available at: <https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html> [Accessed 5 November 2026].
+
 Open Worldwide Application Security Project, 2021. *OWASP top 10:2021*. [online] Available at: <https://owasp.org/Top10/2021/> [Accessed 6 September 2026].
 
 Provos, N. and Mazières, D., 1999. A future-adaptable password scheme. *Proceedings of the FREENIX Track: 1999 USENIX Annual Technical Conference*. Monterey, United States of America, 6–11 June 1999. Berkeley: USENIX Association. Available at: <https://www.usenix.org/legacy/events/usenix99/provos.html> [Accessed 6 September 2026].
@@ -807,6 +934,8 @@ The Independent Institute of Education, 2025. *Guidelines for responsible AI use
 
 The Independent Institute of Education, 2026. *Information systems 3D / Application development security: POE (paper and marking rubric)*. [pdf] [s.l.]: The Independent Institute of Education.
 
+Winston, 2024. *winston: a logger for just about everything*. [online] GitHub. Available at: <https://github.com/winstonjs/winston> [Accessed 5 November 2026].
+
 ---
 
 ## Disclosure of AI usage in this assessment
@@ -815,10 +944,22 @@ This annexure follows The IIE’s labelling and disclosure rules for generative 
 
 **Section(s) of the assessment where AI was used:** Git merges and branch integration (Humera, Mo, Lilitha, and `main`), not the written security rationale or the original application design.
 
-**Name of AI tool(s) used:** Cursor (Cursor, 2026).
+**Name of AI tool(s) used:** Cursor (Cursor, 2026) and Claude (Anthropic, 2026).
 
 **Purpose / intention behind use:** The group used Cursor to **understand merge conflicts** and to **sort conflicts and branches**. Several people were committing to the same repository. We did not want to delete someone else’s code by mistake while accepting or rejecting conflict markers. Cursor was used as a second pair of eyes to explain what each side of a conflict meant so we could keep the correct Humera, Mo, and Lilitha work. We reviewed every suggested resolution before it was committed. Cursor did not replace group decisions, and we remain responsible for the quality and integrity of this submission (The Independent Institute of Education, 2025).
 
 **Date(s) on which generative AI was used:** September–November 2026, during branch merges onto `Humera` and `main`, and while assembling Part 3 documentation.
 
 **Chat record:** Cursor chats are stored in the local Cursor session used by the group leader. There is no public shareable chat URL. Direct AI wording was not copied into this README or into production code as an unreviewed block.
+
+### Claude (logging and monitoring)
+
+**Section(s) of the assessment where AI was used:** The logging and monitoring requirement, completed by Lilitha Mlobi: the Winston logger (`src/utils/logger.js`), request IDs and access logging (`src/middleware/requestLogger.js`), the security and audit log calls in the controllers and middleware, the logging tests (`tests/logging.test.js`), the demo script (`scripts/demo-logging.js`), and the first draft of the Logging and monitoring section of this README.
+
+**Name of AI tool(s) used:** Claude (Anthropic, 2026).
+
+**Purpose / intention behind use:** Claude was used to write and explain the logging code and tests, to suggest which events should be logged and why, and to help set up MongoDB Atlas and Git for the test run. Lilitha ran the tests and the demo script on her own machine against the real database and checked the log output. The log lines and screenshot in the Logging evidence section come from that run. We remain responsible for the quality and integrity of this submission (The Independent Institute of Education, 2025).
+
+**Date(s) on which generative AI was used:** 5 to 7 November 2026.
+
+**Chat record:** The Claude conversation is saved in the Claude account of Lilitha Mlobi and can be shared on request.

@@ -7,13 +7,14 @@ const {
   confirmBooking,
 } = require("../models/bookingModel");
 const { createTransaction, findByBookingId } = require("../models/transactionModel");
-const logger = require("../utils/logger");
+const { logAudit, logSecurity } = require("../utils/logger");
 
 async function create(req, res, next) {
   try {
     const gig = await findGigById(req.body.gigId);
 
     if (!gig) {
+      logAudit("booking.create.failed", req, { reason: "gig_not_found", gigId: req.body.gigId }, "warn");
       return fail(res, 404, "Gig not found");
     }
 
@@ -24,12 +25,13 @@ async function create(req, res, next) {
       amount: gig.price,
     });
 
-    logger.info("booking.created", {
+    logAudit("booking.created", req, {
       bookingId: booking.id,
-      gigId: gig.id,
-      clientId: req.user.id,
-      freelancerId: gig.freelancerId,
-      amount: gig.price,
+      gigId: booking.gigId,
+      clientId: booking.clientId,
+      freelancerId: booking.freelancerId,
+      amount: booking.amount,
+      status: booking.status,
     });
 
     return success(res, 201, "Booking created successfully", booking);
@@ -52,20 +54,43 @@ async function confirm(req, res, next) {
     const booking = await findBookingById(req.params.id);
 
     if (!booking) {
+      logAudit(
+        "booking.confirm.failed",
+        req,
+        { reason: "booking_not_found", bookingId: req.params.id },
+        "warn"
+      );
       return fail(res, 404, "Booking not found");
     }
 
     if (booking.clientId !== req.user.id) {
+      logSecurity("access.denied", req, {
+        reason: "not_booking_owner",
+        bookingId: booking.id,
+        ownerId: booking.clientId,
+      });
       return fail(res, 403, "Forbidden");
     }
 
     if (booking.status === "confirmed") {
+      logAudit(
+        "booking.confirm.failed",
+        req,
+        { reason: "already_confirmed", bookingId: booking.id },
+        "warn"
+      );
       return fail(res, 409, "Booking already confirmed");
     }
 
     const existingTransaction = await findByBookingId(booking.id);
 
     if (existingTransaction) {
+      logAudit(
+        "transaction.duplicate_blocked",
+        req,
+        { bookingId: booking.id, existingTransactionId: existingTransaction.id },
+        "warn"
+      );
       return fail(res, 409, "Booking already confirmed");
     }
 
@@ -78,15 +103,21 @@ async function confirm(req, res, next) {
       amount: confirmed.amount,
     });
 
-    logger.info("booking.confirmed", {
+    logAudit("booking.confirmed", req, {
       bookingId: confirmed.id,
+      gigId: confirmed.gigId,
       clientId: confirmed.clientId,
-    });
-    logger.info("transaction.created", {
-      transactionId: transaction.id,
-      bookingId: confirmed.id,
       freelancerId: confirmed.freelancerId,
-      amount: confirmed.amount,
+    });
+
+    logAudit("transaction.recorded", req, {
+      transactionId: transaction.id,
+      bookingId: transaction.bookingId,
+      gigId: transaction.gigId,
+      clientId: transaction.clientId,
+      freelancerId: transaction.freelancerId,
+      amount: transaction.amount,
+      type: transaction.type,
     });
 
     return success(res, 200, "Booking confirmed successfully", {
