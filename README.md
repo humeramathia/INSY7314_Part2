@@ -8,7 +8,7 @@ HustleHub+ is a secure freelance marketplace. Freelancers advertise services. Cl
 
 This repository is the **complete application**: Part 1 authentication, Part 2 gigs/bookings/transactions on MongoDB with a React client, and Part 3 tax estimation, Docker Compose, extra security controls, logging, and this documentation.
 
-**Demonstration video:** [HustleHub+ Part 2 demo](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The Part 1 API demo remains at [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE).
+**Demonstration videos:** [HustleHub+ Part 3 demo](https://youtu.be/dzH8c4-SD8o) (Nordien, 2026). Part 2 remains at [https://youtu.be/eevV5RWQjZc](https://youtu.be/eevV5RWQjZc). Part 1 remains at [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE).
 
 ---
 
@@ -765,6 +765,8 @@ npm run test:api
 
 Imraan Nordien (ST10434419) produced the Postman collections, Newman run, screenshots, and demonstration videos.
 
+**Part 3 demonstration video:** [https://youtu.be/dzH8c4-SD8o](https://youtu.be/dzH8c4-SD8o) (Nordien, 2026). The recording shows Docker Compose, the SARS tax dashboard with charts, account lockout, JWT denylist on logout, and Grafana logging, as required by The Independent Institute of Education (2026).
+
 **Part 2 demonstration video:** [https://youtu.be/eevV5RWQjZc](https://youtu.be/eevV5RWQjZc) (Nordien, 2026). The recording shows the React client and the live API: register and login, gigs, bookings, income, and admin, as required by The Independent Institute of Education (2026).
 
 **Part 1 demonstration video:** [https://youtu.be/DcsFY8W7TBE](https://youtu.be/DcsFY8W7TBE) (Nordien, 2026). The earlier recording shows the API running over HTTPS, successful registration, and login with token generation.
@@ -1044,6 +1046,8 @@ MongoDB, Inc., 2024. *Introduction to MongoDB*. [online] Available at: <https://
 Nordien, I., 2026. *HustleHub+ Part 1 demonstration*. [video online] Available at: <https://youtu.be/DcsFY8W7TBE> [Accessed 6 September 2026].
 
 Nordien, I., 2026. *HustleHub+ Part 2 demonstration*. [video online] Available at: <https://youtu.be/eevV5RWQjZc> [Accessed 12 October 2026].
+
+Nordien, I., 2026. *HustleHub+ Part 3 demonstration*. [video online] Available at: <https://youtu.be/dzH8c4-SD8o> [Accessed 9 November 2026].
 
 OpenJS Foundation, 2024. *Node.js documentation*. [online] Available at: <https://nodejs.org/docs/latest/api/> [Accessed 6 September 2026].
 
